@@ -10,6 +10,7 @@ import (
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/sam"
+	"github.com/biogo/store/interval"
 )
 
 const (
@@ -72,10 +73,26 @@ const (
 )
 
 // RefBlock represents a chunk in the genome
+// It implements biogo's interval.IntInterface
 type RefBlock struct {
 	RefID int
 	Start int
 	End   int
+}
+
+// ID returns the unique ID for the RefBlock
+func (r *RefBlock) ID() uintptr {
+	return uintptr(r.RefID)
+}
+
+// Range gives the range of the current RefBlock
+func (r *RefBlock) Range() interval.IntRange {
+	return interval.IntRange{r.Start, r.End}
+}
+
+// Overlap returns a boolean indicating whether the receiver overlaps a range
+func (r *RefBlock) Overlap(b interval.IntRange) bool {
+	return r.End > b.Start && r.Start < b.End
 }
 
 // BinUnit has the size and location of a single bin in the index
@@ -117,19 +134,16 @@ func getBinType(val, median float64) (float32, BinType) {
 	return float32(scaled), t
 }
 
-// BinSizes returns the BinData for SampleIndex
-func (s *SampleIndex) BinSizes(ignoreRIDs map[int]bool) (*BinData, error) {
+// BinSizes returns the per bin size and the chunks from the bam index
+func (s *SampleIndex) BinSizes() ([][]int64, [][]bgzf.Chunk) {
 	idxRefs := reflect.ValueOf(*s.Index).FieldByName("idx").FieldByName("Refs")
 	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
 	refIdxs := (*(*[1 << 30]RefIndex)(idxRefsPtr))[:idxRefs.Len()]
 
-	bins := make([][]int64, len(refIdxs)-len(ignoreRIDs))
-	offsets := make([][]bgzf.Chunk, len(refIdxs)-len(ignoreRIDs))
-	for i, refidx := range refIdxs {
-		if ignoreRIDs[i] {
-			continue
-		}
+	bins := make([][]int64, len(refIdxs))
+	offsets := make([][]bgzf.Chunk, len(refIdxs))
 
+	for i, refidx := range refIdxs {
 		if len(refidx.Intervals) < 2 {
 			bins[i] = make([]int64, 0)
 			offsets[i] = make([]bgzf.Chunk, 0)
@@ -142,53 +156,55 @@ func (s *SampleIndex) BinSizes(ignoreRIDs map[int]bool) (*BinData, error) {
 			bins[i][j] = vOffset(endOff) - vOffset(beginOff)
 			offsets[i][j] = bgzf.Chunk{Begin: beginOff, End: endOff}
 			if bins[i][j] < 0 {
-				return nil, ErrNegativeVirtualOffset
+				panic(ErrNegativeVirtualOffset)
 			}
 		}
 		refidx.Bins, refidx.Intervals = nil, nil
 	}
 
-	mergedSizes := make([]int64, 0, 0x4000)
-	for i := 0; i < len(bins); i++ {
-		mergedSizes = append(mergedSizes, bins[i]...)
-	}
-	if len(mergedSizes) == 0 {
-		return nil, ErrNoChunksToUse
-	}
+	return bins, offsets
 
-	medianSize := Median(mergedSizes)
-	binUnits := make([]BinUnit, len(mergedSizes))
+	// mergedSizes := make([]int64, 0, 0x4000)
+	// for i := 0; i < len(bins); i++ {
+	// 	mergedSizes = append(mergedSizes, bins[i]...)
+	// }
+	// if len(mergedSizes) == 0 {
+	// 	return nil, ErrNoChunksToUse
+	// }
+	//
+	// medianSize := Median(mergedSizes)
+	// binUnits := make([]BinUnit, len(mergedSizes))
 
-	var (
-		chrPos   int
-		bType    BinType
-		rBlock   RefBlock
-		normSize float32
-	)
+	// var (
+	// 	chrPos   int
+	// 	bType    BinType
+	// 	rBlock   RefBlock
+	// 	normSize float32
+	// )
 
-	for rid := 0; rid < len(bins); rid++ {
-		chrPos = 0
-		for cid := 0; cid < len(bins[rid]); cid++ {
-
-			rBlock = RefBlock{
-				RefID: rid,
-				Start: chrPos,
-				End:   chrPos + 16384,
-			}
-
-			chrPos += 16384
-			normSize, bType = getBinType(float64(bins[rid][cid]), medianSize)
-
-			binUnits = append(binUnits, BinUnit{
-				Type:  bType,
-				Block: rBlock,
-				Norm:  normSize,
-				Chunk: offsets[rid][cid],
-			})
-		}
-	}
-
-	return &BinData{Units: binUnits, Median: medianSize}, nil
+	// for rid := 0; rid < len(bins); rid++ {
+	// 	chrPos = 0
+	// 	for cid := 0; cid < len(bins[rid]); cid++ {
+	//
+	// 		rBlock = RefBlock{
+	// 			RefID: rid,
+	// 			Start: chrPos,
+	// 			End:   chrPos + 16384,
+	// 		}
+	//
+	// 		chrPos += 16384
+	// 		normSize, bType = getBinType(float64(bins[rid][cid]), medianSize)
+	//
+	// 		binUnits = append(binUnits, BinUnit{
+	// 			Type:  bType,
+	// 			Block: rBlock,
+	// 			Norm:  normSize,
+	// 			Chunk: offsets[rid][cid],
+	// 		})
+	// 	}
+	// }
+	//
+	// return &BinData{Units: binUnits, Median: medianSize}, nil
 }
 
 // Stats returns the number of mapped reads and total number of bases in BAM (from header)
