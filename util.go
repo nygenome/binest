@@ -1,6 +1,7 @@
 package binest
 
 import (
+	"math/rand"
 	"sort"
 
 	"github.com/biogo/hts/bgzf"
@@ -31,4 +32,12 @@ func Median(input []int64) float64 {
 	}
 
 	return median
+}
+
+// ShuffleChunks shuffles BGZF chunks using the fisher yates method
+func ShuffleChunks(c []bgzf.Chunk) {
+	for i := range c {
+		j := rand.Intn(i + 1)
+		c[i], c[j] = c[j], c[i]
+	}
 }
