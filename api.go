@@ -2,6 +2,8 @@ package binest
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"reflect"
 	"unsafe"
 
@@ -187,6 +189,23 @@ func (s *SampleIndex) BinSizes(ignoreRIDs map[int]bool) (*BinData, error) {
 	}
 
 	return &BinData{Units: binUnits, Median: medianSize}, nil
+}
+
+// Stats returns the number of mapped reads and total number of bases in BAM (from header)
+func (s *SampleIndex) Stats() (uint64, uint64) {
+	var mappedReads, genomeBases uint64
+
+	for refID, ref := range s.RefMap {
+		genomeBases += uint64(ref.Len())
+		refStats, ok := s.Index.ReferenceStats(refID)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "chrom %s not found in BAM index for %s", ref.Name(), s.Name)
+			continue
+		}
+		mappedReads += refStats.Mapped
+	}
+
+	return mappedReads, genomeBases
 }
 
 // NewSampleIndex returns a new SampleIndex using the given bam index and header
