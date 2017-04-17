@@ -71,10 +71,9 @@ const (
 
 // RefBlock represents a chunk in the genome
 type RefBlock struct {
-	RefName string
-	RefID   int
-	Start   int
-	End     int
+	RefID int
+	Start int
+	End   int
 }
 
 // BinUnit has the size and location of a single bin in the index
@@ -160,10 +159,9 @@ func (s *SampleIndex) BinSizes() (*BinData, error) {
 		for cid := 0; cid < len(bins[rid]); cid++ {
 
 			rBlock = RefBlock{
-				RefName: s.RefMap[rid].Name(),
-				RefID:   rid,
-				Start:   chromPos,
-				End:     chromPos + 16384,
+				RefID: rid,
+				Start: chromPos,
+				End:   chromPos + 16384,
 			}
 
 			chromPos += 16384
