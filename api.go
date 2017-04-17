@@ -24,7 +24,7 @@ var (
 	// ErrNegativeVirtualOffset when non positive change in virtual offset between start and end of bins
 	ErrNegativeVirtualOffset = errors.New("binest: Non positive change in vOffset")
 	// ErrNoChunksInBam when not enough usable bins in the BAM index
-	ErrNoChunksInBam = errors.New("binest: No usable chunks found in BAM index")
+	ErrNoChunksToUse = errors.New("binest: No usable chunks for estimates")
 )
 
 // RefIndex is the index of a single reference.
@@ -78,7 +78,7 @@ type RefBlock struct {
 
 // BinUnit has the size and location of a single bin in the index
 type BinUnit struct {
-	Size  int64
+	Norm  float32
 	Type  BinType
 	Chunk bgzf.Chunk
 	Block RefBlock
@@ -98,30 +98,36 @@ type SampleIndex struct {
 }
 
 // getBinType takes a bin size and returns the BinType
-func getBinType(val, median float64) BinType {
+func getBinType(val, median float64) (float32, BinType) {
 	scaled := val / median
+	var t BinType
 	if scaled <= float64(0.2) {
-		return VeryLow
+		t = VeryLow
 	} else if scaled > float64(0.2) && scaled <= float64(0.8) {
-		return Low
+		t = Low
 	} else if scaled > float64(0.8) && scaled <= float64(1.2) {
-		return Normal
+		t = Normal
 	} else if scaled > float64(1.2) && scaled <= float64(1.7) {
-		return High
+		t = High
 	} else {
-		return VeryHigh
+		t = VeryHigh
 	}
+	return float32(scaled), t
 }
 
 // BinSizes returns the BinData for SampleIndex
-func (s *SampleIndex) BinSizes() (*BinData, error) {
+func (s *SampleIndex) BinSizes(ignoreRIDs map[int]bool) (*BinData, error) {
 	idxRefs := reflect.ValueOf(*s.Index).FieldByName("idx").FieldByName("Refs")
 	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
 	refIdxs := (*(*[1 << 30]RefIndex)(idxRefsPtr))[:idxRefs.Len()]
 
-	bins := make([][]int64, len(refIdxs))
-	offsets := make([][]bgzf.Chunk, len(refIdxs))
+	bins := make([][]int64, len(refIdxs)-len(ignoreRIDs))
+	offsets := make([][]bgzf.Chunk, len(refIdxs)-len(ignoreRIDs))
 	for i, refidx := range refIdxs {
+		if ignoreRIDs[i] {
+			continue
+		}
+
 		if len(refidx.Intervals) < 2 {
 			bins[i] = make([]int64, 0)
 			offsets[i] = make([]bgzf.Chunk, 0)
@@ -145,32 +151,37 @@ func (s *SampleIndex) BinSizes() (*BinData, error) {
 		mergedSizes = append(mergedSizes, bins[i]...)
 	}
 	if len(mergedSizes) == 0 {
-		return nil, ErrNoChunksInBam
+		return nil, ErrNoChunksToUse
 	}
 
 	medianSize := Median(mergedSizes)
 	binUnits := make([]BinUnit, len(mergedSizes))
 
-	var chromPos int
-	var rBlock RefBlock
+	var (
+		chrPos   int
+		bType    BinType
+		rBlock   RefBlock
+		normSize float32
+	)
 
 	for rid := 0; rid < len(bins); rid++ {
-		chromPos = 0
+		chrPos = 0
 		for cid := 0; cid < len(bins[rid]); cid++ {
 
 			rBlock = RefBlock{
 				RefID: rid,
-				Start: chromPos,
-				End:   chromPos + 16384,
+				Start: chrPos,
+				End:   chrPos + 16384,
 			}
 
-			chromPos += 16384
+			chrPos += 16384
+			normSize, bType = getBinType(float64(bins[rid][cid]), medianSize)
 
 			binUnits = append(binUnits, BinUnit{
+				Type:  bType,
 				Block: rBlock,
-				Size:  bins[rid][cid],
+				Norm:  normSize,
 				Chunk: offsets[rid][cid],
-				Type:  getBinType(float64(bins[rid][cid]), medianSize),
 			})
 		}
 	}
