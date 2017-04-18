@@ -30,8 +30,8 @@ func vOffset(o bgzf.Offset) int64 {
 	return o.File<<16 | int64(o.Block)
 }
 
-// Median gets the median for a slice of bin sizes
-func Median(input []int64) float64 {
+// MedianInt64 gets the median for a slice of bin sizes
+func MedianInt64(input []int64) float64 {
 	arrLen := len(input)
 	sort.Slice(input, func(i, j int) bool { return input[i] < input[j] })
 
@@ -46,7 +46,7 @@ func Median(input []int64) float64 {
 		curIdx := arrLen / 2
 		for ; curIdx < arrLen && input[curIdx] == 0; curIdx++ {
 		}
-		return Median(input[curIdx:])
+		return MedianInt64(input[curIdx:])
 	}
 
 	return median
