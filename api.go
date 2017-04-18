@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"unsafe"
 
 	"github.com/biogo/hts/bam"
@@ -13,21 +14,11 @@ import (
 	"github.com/biogo/store/interval"
 )
 
-const (
-	// TileWidth is the length of the interval tiling used in BAI and tabix indexes.
-	TileWidth = 0x4000
-
-	// StatsDummyBin is the bin number of the reference statistics bin used in BAI and tabix indexes.
-	StatsDummyBin = 0x924a
-)
-
 var (
-	// ErrTooManySamples when more than one unique sample found in RG header
-	ErrTooManySamples = errors.New("binest: Too many samples in RG header")
-	// ErrNegativeVirtualOffset when non positive change in virtual offset between start and end of bins
+	ErrTooManySamples        = errors.New("binest: Too many samples in RG header")
+	ErrNoChunksToUse         = errors.New("binest: No usable chunks for estimates")
+	ErrNotEnoughBins         = errors.New("binest: Not enough bins availabe to use")
 	ErrNegativeVirtualOffset = errors.New("binest: Non positive change in vOffset")
-	// ErrNoChunksInBam when not enough usable bins in the BAM index
-	ErrNoChunksToUse = errors.New("binest: No usable chunks for estimates")
 )
 
 // RefIndex is the index of a single reference.
@@ -43,38 +34,16 @@ type Bin struct {
 	Chunks []bgzf.Chunk
 }
 
-// ReferenceStats holds mapping statistics for a genomic reference.
+// ReferenceStats holds mapping statistics available in the BAM index.
 type ReferenceStats struct {
-	// Chunk is the span of the indexed BGZF
-	// holding alignments to the reference.
-	Chunk bgzf.Chunk
-
-	// Mapped is the count of mapped reads.
-	Mapped uint64
-
-	// Unmapped is the count of unmapped reads.
+	Chunk    bgzf.Chunk
+	Mapped   uint64
 	Unmapped uint64
 }
 
-// BinType represents the size class of the bin unit
-type BinType int
-
-const (
-	// VeryLow has binSize -> <= 0.2 * median
-	VeryLow BinType = iota
-	// Low has binSize -> 0.2 * median < binSize <= 0.8 * median
-	Low
-	// Normal has binSize -> 0.8 * median < binSize <= 1.2 * median
-	Normal
-	// High has binSize -> 1.2 * median < binSize <= 1.7 * median
-	High
-	// VeryHigh has binSize -> binSize > 1.7 * median
-	VeryHigh
-)
-
-// RefBlock represents a chunk in the genome
-// It implements biogo's interval.IntInterface
+// RefBlock is a chunk in the genome implementing biogo's IntInterface
 type RefBlock struct {
+	Name  string
 	RefID int
 	Start int
 	End   int
@@ -95,18 +64,24 @@ func (r *RefBlock) Overlap(b interval.IntRange) bool {
 	return r.End > b.Start && r.Start < b.End
 }
 
-// BinUnit has the size and location of a single bin in the index
+// RawBin holds the raw offset difference, begin and end
+// offsets of a bin in the reference
+type RawBin struct {
+	Size  int64
+	Chunk bgzf.Chunk
+}
+
+// BinUnit has the normalized size and location of a single bin
 type BinUnit struct {
-	Norm  float32
-	Type  BinType
+	Size  float64
 	Chunk bgzf.Chunk
 	Block RefBlock
 }
 
-// BinData holds the sizes and location of all the bins in the index.
-type BinData struct {
-	Units  []BinUnit
-	Median float64
+// String method on BinUnit serializes BinUnit to a string
+func (b BinUnit) String() string {
+	return fmt.Sprintf("%s\t%d\t%d\t%.10f",
+		b.Block.Name, b.Block.Start, b.Block.End, b.Size)
 }
 
 // SampleIndex holds relevant information to operate in BAM index bins.
@@ -116,98 +91,101 @@ type SampleIndex struct {
 	RefMap map[int]*sam.Reference
 }
 
-// getBinType takes a bin size and returns the BinType
-func getBinType(val, median float64) (float32, BinType) {
-	scaled := val / median
-	var t BinType
-	if scaled <= float64(0.2) {
-		t = VeryLow
-	} else if scaled > float64(0.2) && scaled <= float64(0.8) {
-		t = Low
-	} else if scaled > float64(0.8) && scaled <= float64(1.2) {
-		t = Normal
-	} else if scaled > float64(1.2) && scaled <= float64(1.7) {
-		t = High
-	} else {
-		t = VeryHigh
-	}
-	return float32(scaled), t
-}
-
-// BinSizes returns the per bin size and the chunks from the bam index
-func (s *SampleIndex) BinSizes() ([][]int64, [][]bgzf.Chunk) {
+// bins returns the bin size and BGZF chunks for each chunk from the bam index
+func (s *SampleIndex) bins() ([][]RawBin, error) {
 	idxRefs := reflect.ValueOf(*s.Index).FieldByName("idx").FieldByName("Refs")
 	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
-	refIdxs := (*(*[1 << 30]RefIndex)(idxRefsPtr))[:idxRefs.Len()]
+	refIdxs := (*(*[1 << 32]RefIndex)(idxRefsPtr))[:idxRefs.Len()]
 
-	bins := make([][]int64, len(refIdxs))
-	offsets := make([][]bgzf.Chunk, len(refIdxs))
+	var (
+		binSize       int64
+		binChunk      bgzf.Chunk
+		intervalBegin bgzf.Offset
+	)
 
-	for i, refidx := range refIdxs {
-		if len(refidx.Intervals) < 2 {
-			bins[i] = make([]int64, 0)
-			offsets[i] = make([]bgzf.Chunk, 0)
+	bins := make([][]RawBin, len(refIdxs))
+
+	for refNum, rIdx := range refIdxs {
+		// Ignore chromosomes too small to hold a chunk
+		if len(rIdx.Intervals) < 2 {
+			bins[refNum] = make([]RawBin, 0)
 			continue
 		}
-		bins[i] = make([]int64, len(refidx.Intervals)-1)
-		offsets[i] = make([]bgzf.Chunk, len(refidx.Intervals)-1)
-		for j, endOff := range refidx.Intervals[1:] {
-			beginOff := refidx.Intervals[j]
-			bins[i][j] = vOffset(endOff) - vOffset(beginOff)
-			offsets[i][j] = bgzf.Chunk{Begin: beginOff, End: endOff}
-			if bins[i][j] < 0 {
+
+		bins[refNum] = make([]RawBin, len(rIdx.Intervals)-1)
+		for chunkNum, intervalEnd := range rIdx.Intervals[1:] {
+			intervalBegin = rIdx.Intervals[chunkNum]
+			binSize = vOffset(intervalEnd) - vOffset(intervalBegin)
+			binChunk = bgzf.Chunk{Begin: intervalBegin, End: intervalEnd}
+
+			bins[refNum][chunkNum] = RawBin{Size: binSize, Chunk: binChunk}
+
+			if binSize < 0 {
 				panic(ErrNegativeVirtualOffset)
 			}
 		}
-		refidx.Bins, refidx.Intervals = nil, nil
+
+		rIdx.Bins, rIdx.Intervals = nil, nil
 	}
 
-	return bins, offsets
-
-	// mergedSizes := make([]int64, 0, 0x4000)
-	// for i := 0; i < len(bins); i++ {
-	// 	mergedSizes = append(mergedSizes, bins[i]...)
-	// }
-	// if len(mergedSizes) == 0 {
-	// 	return nil, ErrNoChunksToUse
-	// }
-	//
-	// medianSize := Median(mergedSizes)
-	// binUnits := make([]BinUnit, len(mergedSizes))
-
-	// var (
-	// 	chrPos   int
-	// 	bType    BinType
-	// 	rBlock   RefBlock
-	// 	normSize float32
-	// )
-
-	// for rid := 0; rid < len(bins); rid++ {
-	// 	chrPos = 0
-	// 	for cid := 0; cid < len(bins[rid]); cid++ {
-	//
-	// 		rBlock = RefBlock{
-	// 			RefID: rid,
-	// 			Start: chrPos,
-	// 			End:   chrPos + 16384,
-	// 		}
-	//
-	// 		chrPos += 16384
-	// 		normSize, bType = getBinType(float64(bins[rid][cid]), medianSize)
-	//
-	// 		binUnits = append(binUnits, BinUnit{
-	// 			Type:  bType,
-	// 			Block: rBlock,
-	// 			Norm:  normSize,
-	// 			Chunk: offsets[rid][cid],
-	// 		})
-	// 	}
-	// }
-	//
-	// return &BinData{Units: binUnits, Median: medianSize}, nil
+	return bins, nil
 }
 
-// Stats returns the number of mapped reads and total number of bases in BAM (from header)
+// NormalizedBinDepth returns the normalized BinData for the sample
+func (s *SampleIndex) NormalizedBins() ([]BinUnit, error) {
+	bins, err := s.bins()
+	if err != nil {
+		return nil, err
+	}
+
+	mergedBinSizes := make([]int64, 0, 0x10000)
+
+	for i := 0; i < len(bins); i++ {
+		for j := 0; j < len(bins[i]); j++ {
+			mergedBinSizes = append(mergedBinSizes, bins[i][j].Size)
+		}
+	}
+
+	if len(mergedBinSizes) < 0x1000 {
+		return nil, ErrNotEnoughBins
+	}
+
+	medianBinSize := MedianInt64(mergedBinSizes)
+
+	var chrPos int
+	normedBins := make([]BinUnit, 0, 0x10000)
+
+	for _, ref := range s.RefMap {
+		chrPos = 0
+		binsForRef := bins[ref.ID()]
+		for _, b := range binsForRef {
+			normedBins = append(normedBins, BinUnit{
+				Chunk: b.Chunk,
+				Size:  float64(b.Size) / medianBinSize,
+				Block: RefBlock{
+					RefID: ref.ID(),
+					Start: chrPos,
+					End:   chrPos + 0x4000,
+					Name:  s.RefMap[ref.ID()].Name(),
+				},
+			})
+			chrPos += 0x4000
+		}
+	}
+
+	sort.Slice(normedBins, func(i, j int) bool {
+		switch normedBins[i].Block.RefID - normedBins[j].Block.RefID {
+		case 0:
+			return normedBins[i].Block.Start < normedBins[j].Block.Start
+		default:
+			return normedBins[i].Block.RefID < normedBins[j].Block.RefID
+		}
+	})
+
+	return normedBins, nil
+}
+
+// Stats returns the number of mapped reads and total number of bases in the genome
 func (s *SampleIndex) Stats() (uint64, uint64) {
 	var mappedReads, genomeBases uint64
 
@@ -215,7 +193,8 @@ func (s *SampleIndex) Stats() (uint64, uint64) {
 		genomeBases += uint64(ref.Len())
 		refStats, ok := s.Index.ReferenceStats(refID)
 		if !ok {
-			fmt.Fprintf(os.Stderr, "chrom %s not found in BAM index for %s", ref.Name(), s.Name)
+			msg := "chrom %s found in BAM header but missing in BAM index for sample %s\n"
+			fmt.Fprintf(os.Stderr, msg, ref.Name(), s.Name)
 			continue
 		}
 		mappedReads += refStats.Mapped
