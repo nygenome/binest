@@ -41,10 +41,11 @@ func EstimateCoverage(bampath string) {
 	si, err := binest.NewSampleIndex(bamIdx, bamRdr.Header())
 	binest.CheckError(err)
 
-	bins, err := si.NormalizedBins()
+	bins, blocks, err := si.NormalizedBins()
 	binest.CheckError(err)
 
-	for refBlock, binInfo := range bins {
+	for _, refBlock := range blocks {
+		binInfo := bins[refBlock]
 		fmt.Fprintf(os.Stdout, "%s\t%d\t%d\t%.10f\n",
 			refBlock.Name, refBlock.Start, refBlock.End, binInfo.Size)
 	}

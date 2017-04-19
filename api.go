@@ -125,10 +125,10 @@ func (s *SampleIndex) bins() ([][]RawBin, error) {
 }
 
 // NormalizedBins returns the normalized BinData for the sample
-func (s *SampleIndex) NormalizedBins() (map[RefBlock]BinUnit, error) {
+func (s *SampleIndex) NormalizedBins() (map[RefBlock]BinUnit, []RefBlock, error) {
 	bins, err := s.bins()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	mergedBinSizes := make([]int64, 0, 65536)
@@ -140,7 +140,7 @@ func (s *SampleIndex) NormalizedBins() (map[RefBlock]BinUnit, error) {
 	}
 
 	if len(mergedBinSizes) < 4096 {
-		return nil, ErrNotEnoughBins
+		return nil, nil, ErrNotEnoughBins
 	}
 
 	medianBinSize := MedianInt64(mergedBinSizes)
@@ -153,6 +153,7 @@ func (s *SampleIndex) NormalizedBins() (map[RefBlock]BinUnit, error) {
 	)
 
 	normedBins := make(map[RefBlock]BinUnit)
+	refBlocks := make([]RefBlock, 0, 65536)
 
 	for _, ref := range s.RefMap {
 		pos = 0
@@ -163,10 +164,11 @@ func (s *SampleIndex) NormalizedBins() (map[RefBlock]BinUnit, error) {
 			normed = float64(b.Size) / medianBinSize
 			normedBins[rBlock] = BinUnit{Size: normed, Chunk: b.Chunk}
 			pos += 16384
+			refBlocks = append(refBlocks, rBlock)
 		}
 	}
 
-	return normedBins, nil
+	return normedBins, refBlocks, nil
 }
 
 // Stats returns the number of mapped reads and total number of bases in the genome
