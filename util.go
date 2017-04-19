@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"os"
 	"regexp"
@@ -141,4 +142,18 @@ func ReadBed(bedPath string, chromToID map[string]int) map[int]*interval.IntTree
 	}
 
 	return tree
+}
+
+// Round rounds a float64 value at `roundOn` decimal point to `places`
+func Round(val float64, roundOn float64, places int) float64 {
+	var round float64
+	pow := math.Pow(10, float64(places))
+	digit := pow * val
+	_, div := math.Modf(digit)
+	if div >= roundOn {
+		round = math.Ceil(digit)
+	} else {
+		round = math.Floor(digit)
+	}
+	return round / pow
 }
