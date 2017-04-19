@@ -70,8 +70,8 @@ type rawBin struct {
 	Chunk bgzf.Chunk
 }
 
-// normBin has the normalized size and location of a single bin
-type normBin struct {
+// NormBin has the normalized size and location of a single bin
+type NormBin struct {
 	Size  float64
 	Chunk bgzf.Chunk
 }
@@ -84,7 +84,7 @@ type RawBinData struct {
 
 // NormBinData represents the normalized bin data of a sample
 type NormBinData struct {
-	Bins   map[RefBlock]normBin
+	Bins   map[RefBlock]NormBin
 	Blocks []RefBlock
 }
 
@@ -194,7 +194,7 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 		rBlock RefBlock
 	)
 
-	normedBins := make(map[RefBlock]normBin)
+	normedBins := make(map[RefBlock]NormBin)
 	refBlocks := make([]RefBlock, 0, 65536)
 
 	for _, ref := range s.RefMap {
@@ -204,7 +204,7 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 		for _, b := range binsForRef {
 			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384, Name: rName}
 			normed = float64(b.Size) / medianBinSize
-			normedBins[rBlock] = normBin{Size: normed, Chunk: b.Chunk}
+			normedBins[rBlock] = NormBin{Size: normed, Chunk: b.Chunk}
 			pos += 16384
 			refBlocks = append(refBlocks, rBlock)
 		}
