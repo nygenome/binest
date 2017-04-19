@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sort"
 	"unsafe"
 
 	"github.com/biogo/hts/bam"
@@ -14,6 +13,7 @@ import (
 	"github.com/biogo/store/interval"
 )
 
+// Common errors which will be raised in the package.
 var (
 	ErrTooManySamples        = errors.New("binest: Too many samples in RG header")
 	ErrNoChunksToUse         = errors.New("binest: No usable chunks for estimates")
@@ -56,7 +56,7 @@ func (r *RefBlock) ID() uintptr {
 
 // Range gives the range of the current RefBlock
 func (r *RefBlock) Range() interval.IntRange {
-	return interval.IntRange{r.Start, r.End}
+	return interval.IntRange{Start: r.Start, End: r.End}
 }
 
 // Overlap returns a boolean indicating whether the receiver overlaps a range
@@ -75,13 +75,6 @@ type RawBin struct {
 type BinUnit struct {
 	Size  float64
 	Chunk bgzf.Chunk
-	Block RefBlock
-}
-
-// String method on BinUnit serializes BinUnit to a string
-func (b BinUnit) String() string {
-	return fmt.Sprintf("%s\t%d\t%d\t%.10f",
-		b.Block.Name, b.Block.Start, b.Block.End, b.Size)
 }
 
 // SampleIndex holds relevant information to operate in BAM index bins.
@@ -131,14 +124,14 @@ func (s *SampleIndex) bins() ([][]RawBin, error) {
 	return bins, nil
 }
 
-// NormalizedBinDepth returns the normalized BinData for the sample
-func (s *SampleIndex) NormalizedBins() ([]BinUnit, error) {
+// NormalizedBins returns the normalized BinData for the sample
+func (s *SampleIndex) NormalizedBins() (map[RefBlock]BinUnit, error) {
 	bins, err := s.bins()
 	if err != nil {
 		return nil, err
 	}
 
-	mergedBinSizes := make([]int64, 0, 0x10000)
+	mergedBinSizes := make([]int64, 0, 65536)
 
 	for i := 0; i < len(bins); i++ {
 		for j := 0; j < len(bins[i]); j++ {
@@ -146,41 +139,32 @@ func (s *SampleIndex) NormalizedBins() ([]BinUnit, error) {
 		}
 	}
 
-	if len(mergedBinSizes) < 0x1000 {
+	if len(mergedBinSizes) < 4096 {
 		return nil, ErrNotEnoughBins
 	}
 
 	medianBinSize := MedianInt64(mergedBinSizes)
 
-	var chrPos int
-	normedBins := make([]BinUnit, 0, 0x10000)
+	var (
+		pos    int
+		rName  string
+		normed float64
+		rBlock RefBlock
+	)
+
+	normedBins := make(map[RefBlock]BinUnit)
 
 	for _, ref := range s.RefMap {
-		chrPos = 0
+		pos = 0
+		rName = ref.Name()
 		binsForRef := bins[ref.ID()]
 		for _, b := range binsForRef {
-			normedBins = append(normedBins, BinUnit{
-				Chunk: b.Chunk,
-				Size:  float64(b.Size) / medianBinSize,
-				Block: RefBlock{
-					RefID: ref.ID(),
-					Start: chrPos,
-					End:   chrPos + 0x4000,
-					Name:  s.RefMap[ref.ID()].Name(),
-				},
-			})
-			chrPos += 0x4000
+			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384, Name: rName}
+			normed = float64(b.Size) / medianBinSize
+			normedBins[rBlock] = BinUnit{Size: normed, Chunk: b.Chunk}
+			pos += 16384
 		}
 	}
-
-	sort.Slice(normedBins, func(i, j int) bool {
-		switch normedBins[i].Block.RefID - normedBins[j].Block.RefID {
-		case 0:
-			return normedBins[i].Block.Start < normedBins[j].Block.Start
-		default:
-			return normedBins[i].Block.RefID < normedBins[j].Block.RefID
-		}
-	})
 
 	return normedBins, nil
 }
