@@ -18,7 +18,7 @@ func Run() {
 	bampaths := make(chan string, 100)
 	doneChan := make(chan bool, 1)
 
-	go EstimateCoverage(bampaths, doneChan)
+	go EstimateSizes(bampaths, doneChan)
 
 	for _, b := range flag.Args() {
 		bampaths <- b
@@ -38,8 +38,8 @@ func Run() {
 	<-doneChan
 }
 
-// EstimateCoverage estimates the coverage excluding the regions in the bed file
-func EstimateCoverage(bampaths <-chan string, doneChan chan<- bool) {
+// EstimateSizes estimates the coverage excluding the regions in the bed file
+func EstimateSizes(bampaths <-chan string, doneChan chan<- bool) {
 	results := make(chan binest.NormBinData, 100)
 
 	go ProcessBamBins(bampaths, results)
