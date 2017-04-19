@@ -27,30 +27,25 @@ func Run() {
 // EstimateCoverage estimates the coverage excluding the regions in the bed file
 func EstimateCoverage(bampath string) {
 	bamFh, err := os.Open(bampath)
-	checkError(err)
+	binest.CheckError(err)
 
 	bamIdxFh, err := os.Open(fmt.Sprintf("%s.bai", bampath))
-	checkError(err)
+	binest.CheckError(err)
 
 	bamRdr, err := bam.NewReader(bamFh, 2)
-	checkError(err)
+	binest.CheckError(err)
 
 	bamIdx, err := bam.ReadIndex(bamIdxFh)
-	checkError(err)
+	binest.CheckError(err)
 
 	si, err := binest.NewSampleIndex(bamIdx, bamRdr.Header())
-	checkError(err)
+	binest.CheckError(err)
 
 	bins, err := si.NormalizedBins()
-	checkError(err)
+	binest.CheckError(err)
 
-	for i := 0; i < len(bins); i++ {
-		fmt.Fprintln(os.Stdout, bins[i])
-	}
-}
-
-func checkError(err error) {
-	if err != nil {
-		panic(err)
+	for refBlock, binInfo := range bins {
+		fmt.Fprintf(os.Stdout, "%s\t%d\t%d\t%.10f\n",
+			refBlock.Name, refBlock.Start, refBlock.End, binInfo.Size)
 	}
 }
