@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -50,9 +51,18 @@ func CheckError(err error) {
 	}
 }
 
-// vOffset returns the BAM virtual offset from BGZF offset
-func vOffset(o bgzf.Offset) int64 {
+// VOffset returns a virtual offset from BGZF offset
+func VOffset(o bgzf.Offset) int64 {
 	return o.File<<16 | int64(o.Block)
+}
+
+// BgzfOffset returns a BGZF offset from virtual offset
+func BgzfOffset(v int64) bgzf.Offset {
+	start := v >> 16
+	return bgzf.Offset{
+		File:  start,
+		Block: uint16(v ^ (start << 16)),
+	}
 }
 
 // MedianInt64 gets the median for a slice of bin sizes
@@ -83,6 +93,25 @@ func ShuffleChunks(c []bgzf.Chunk) {
 		j := rand.Intn(i + 1)
 		c[i], c[j] = c[j], c[i]
 	}
+}
+
+// HasStdin checks if data can be read from stdin
+func HasStdin() bool {
+	stat, err := os.Stdin.Stat()
+	CheckError(err)
+	if stat.Mode()&os.ModeCharDevice == 0 {
+		return true
+	}
+	return false
+}
+
+// StreamLines reads lines from file handle and puts them in the channel
+func StreamLines(fd *os.File, res chan<- string) {
+	bufScnr := bufio.NewScanner(fd)
+	for bufScnr.Scan() {
+		res <- bufScnr.Text()
+	}
+	CheckError(bufScnr.Err())
 }
 
 // ReadBed takes a bed file and returns a map of int trees for overlap testing
