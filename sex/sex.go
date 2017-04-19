@@ -106,6 +106,8 @@ func getSexEstimate(d binest.NormBinData) sexEstimate {
 		xMedian float64
 		yMedian float64
 		gender  string
+		xCopy   uint8
+		yCopy   uint8
 	)
 
 	sort.Slice(xSizes, func(i, j int) bool { return xSizes[i] < xSizes[j] })
@@ -119,15 +121,18 @@ func getSexEstimate(d binest.NormBinData) sexEstimate {
 		yMedian = float64(2) * ySizes[int(float64(len(ySizes))/2)]
 	}
 
-	xCopy := uint8(binest.Round(xMedian, 0.5, 0))
-	yCopy := uint8(binest.Round(yMedian, 0.5, 0))
-
-	if xCopy == 2 && yCopy == 0 {
+	if xMedian >= float64(1.7) && xMedian <= float64(2.3) && yMedian <= float64(0.3) {
 		gender = "female"
-	} else if xCopy == 1 && yCopy == 1 {
+		xCopy = uint8(2)
+		yCopy = uint8(0)
+	} else if xMedian >= float64(0.7) && xMedian <= float64(1.3) && yMedian >= float64(0.7) && yMedian <= float64(1.3) {
 		gender = "male"
+		xCopy = uint8(1)
+		yCopy = uint8(1)
 	} else {
 		gender = "unknown"
+		xCopy = uint8(xMedian)
+		yCopy = uint8(yMedian)
 	}
 
 	return sexEstimate{
@@ -164,6 +169,9 @@ func (s sexEstimate) String() string {
 	}
 	for i := 0; i < int(s.yCopy); i++ {
 		out += "Y"
+	}
+	if s.gender == "unknown" && len(out) == 1 {
+		out += "O"
 	}
 
 	return fmt.Sprintf("%s\t%s\t%s\t%.10f\t%.10f",
