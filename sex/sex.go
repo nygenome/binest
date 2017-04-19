@@ -15,7 +15,6 @@ import (
 // Run is the command line interface for binest sex
 func Run() {
 	infile := flag.String("in", "", "path to file with list of bam files")
-	outfile := flag.String("out", "", "path to output file (default STDOUT)")
 	sexChroms := flag.String("chroms", "X,Y", "comma separated X and Y chrom names in reference")
 	flag.Parse()
 
@@ -23,17 +22,8 @@ func Run() {
 	results := make(chan sexEstimate, 100)
 	doneChan := make(chan bool, 1)
 
-	var outStream *os.File
-	if *outfile != "" {
-		outStream, err := os.Open(*outfile)
-		binest.CheckError(err)
-		defer outStream.Close()
-	} else {
-		outStream = os.Stdout
-	}
-
 	go EstimateSex(bampaths, results, strings.Split(*sexChroms, ","))
-	go writeResults(results, doneChan, outStream)
+	go writeResults(results, doneChan, os.Stdout)
 
 	for _, b := range flag.Args() {
 		bampaths <- b
@@ -147,6 +137,7 @@ func getSexEstimate(d binest.NormBinData, sChroms []string) sexEstimate {
 }
 
 func writeResults(results <-chan sexEstimate, fin chan<- bool, outStream *os.File) {
+	fmt.Println("#SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORMALIZED_XMEAN\tNORMALIZED_YMEAN")
 	for result := range results {
 		fmt.Fprintln(outStream, result)
 	}
