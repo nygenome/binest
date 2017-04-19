@@ -1,2 +1,2 @@
 # binest
-> Fast estimates of coverage, copy number and sex using BAM index
+> Fast estimates of copy number and sex using BAM index
