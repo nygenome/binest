@@ -119,8 +119,8 @@ func getSexEstimate(d binest.NormBinData) sexEstimate {
 		yMedian = float64(2) * ySizes[int(float64(len(ySizes))/2)]
 	}
 
-	xCopy := uint8(binest.Round(xMedian, 0.7, 0))
-	yCopy := uint8(binest.Round(yMedian, 0.7, 0))
+	xCopy := uint8(binest.Round(xMedian, 0.5, 0))
+	yCopy := uint8(binest.Round(yMedian, 0.5, 0))
 
 	if xCopy == 2 && yCopy == 0 {
 		gender = "female"
