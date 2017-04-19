@@ -15,11 +15,36 @@ import (
 	"github.com/brentp/xopen"
 )
 
-// BedRecord is a regex which will match chrom:start-end and chrom\tstart\tend
-var BedRecord = regexp.MustCompile("(.+?)[:\t](\\d+)([\\-\t])(\\d+).*?")
+// bedRecord is a regex which will match chrom:start-end and chrom\tstart\tend
+var bedRecord = regexp.MustCompile("(.+?)[:\t](\\d+)([\\-\t])(\\d+).*?")
 
-// checkError checks for error and panics if present
-func checkError(err error) {
+// parseBedRecord reads a bed record from a line
+func parseBedRecord(line []byte) (string, int, int) {
+	parsed := bedRecord.FindSubmatch(line)
+	if len(parsed) != 5 {
+		panic(fmt.Errorf("Couldn't parse genomic region from bed line - %s", string(line)))
+	}
+	chrom, start, isep, end := parsed[1], parsed[2], parsed[3], parsed[4]
+	sChrom := string(chrom)
+	intStart, err := strconv.Atoi(string(start))
+	CheckError(err)
+
+	if bytes.Equal(isep, []byte{'-'}) {
+		intStart--
+	}
+
+	if intStart < 0 {
+		intStart = 0
+	}
+
+	intEnd, err := strconv.Atoi(string(end))
+	CheckError(err)
+
+	return sChrom, intStart, intEnd
+}
+
+// CheckError checks for error and panics if present
+func CheckError(err error) {
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +88,7 @@ func ShuffleChunks(c []bgzf.Chunk) {
 // ReadBed takes a bed file and returns a map of int trees for overlap testing
 func ReadBed(bedPath string, chromToID map[string]int) map[int]*interval.IntTree {
 	rdr, err := xopen.Ropen(bedPath)
-	checkError(err)
+	CheckError(err)
 
 	tree := make(map[int]*interval.IntTree)
 	bufRdr := bufio.NewReader(rdr)
@@ -73,34 +98,16 @@ func ReadBed(bedPath string, chromToID map[string]int) map[int]*interval.IntTree
 		if err == io.EOF {
 			break
 		}
-		checkError(err)
+		CheckError(err)
+		chrom, start, end := parseBedRecord(line)
 
-		parsed := BedRecord.FindSubmatch(line)
-		if len(parsed) != 5 {
-			fmt.Errorf("Couldn't parse genomic region from bed line - %s", string(line))
-		}
-		chrom, start, isep, end := parsed[1], parsed[2], parsed[3], parsed[4]
-		sChrom := string(chrom)
-		intStart, err := strconv.Atoi(string(start))
-		checkError(err)
-
-		if bytes.Equal(isep, []byte{'-'}) {
-			intStart--
-		}
-
-		if intStart < 0 {
-			intStart = 0
-		}
-		intEnd, err := strconv.Atoi(string(end))
-		checkError(err)
-
-		if refID, ok := chromToID[sChrom]; ok {
+		if refID, ok := chromToID[chrom]; ok {
 			if _, ok := tree[refID]; !ok {
 				tree[refID] = &interval.IntTree{}
 			}
-			tree[refID].Insert(&RefBlock{RefID: refID, Start: intStart, End: intEnd}, false)
+			tree[refID].Insert(&RefBlock{RefID: refID, Start: start, End: end}, false)
 		} else {
-			fmt.Errorf("RefID for %s not found!", sChrom)
+			panic(fmt.Errorf("RefID for %s not found", chrom))
 		}
 	}
 
