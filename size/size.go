@@ -58,29 +58,30 @@ func EstimateCoverage(bampaths <-chan string, doneChan chan<- bool) {
 // ProcessBamBins reads bampaths from a channel and puts the per bin data to results channel
 func ProcessBamBins(bampaths <-chan string, results chan<- binest.NormBinData) {
 	for bampath := range bampaths {
-		bamFh, err := os.Open(bampath)
-		binest.CheckError(err)
+		func() {
+			bamFh, err := os.Open(bampath)
+			binest.CheckError(err)
+			defer bamFh.Close()
 
-		bamIdxFh, err := os.Open(fmt.Sprintf("%s.bai", bampath))
-		binest.CheckError(err)
+			bamIdxFh, err := os.Open(fmt.Sprintf("%s.bai", bampath))
+			binest.CheckError(err)
+			defer bamIdxFh.Close()
 
-		bamRdr, err := bam.NewReader(bamFh, 2)
-		binest.CheckError(err)
+			bamRdr, err := bam.NewReader(bamFh, 2)
+			binest.CheckError(err)
+			defer bamRdr.Close()
 
-		bamIdx, err := bam.ReadIndex(bamIdxFh)
-		binest.CheckError(err)
+			bamIdx, err := bam.ReadIndex(bamIdxFh)
+			binest.CheckError(err)
 
-		si, err := binest.NewSampleIndex(bamIdx, bamRdr.Header())
-		binest.CheckError(err)
+			si, err := binest.NewSampleIndex(bamIdx, bamRdr.Header())
+			binest.CheckError(err)
 
-		normedData, err := si.NormalizedBins()
-		binest.CheckError(err)
+			normedData, err := si.NormalizedBins()
+			binest.CheckError(err)
 
-		results <- normedData
-
-		bamFh.Close()
-		bamRdr.Close()
-		bamIdxFh.Close()
+			results <- normedData
+		}()
 	}
 
 	close(results)
