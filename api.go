@@ -64,15 +64,14 @@ func (r *RefBlock) Overlap(b interval.IntRange) bool {
 	return r.End > b.Start && r.Start < b.End
 }
 
-// RawBin holds the raw offset difference, begin and end
-// offsets of a bin in the reference
+// RawBin holds the raw size and location of a single bin
 type RawBin struct {
 	Size  int64
 	Chunk bgzf.Chunk
 }
 
-// BinUnit has the normalized size and location of a single bin
-type BinUnit struct {
+// NormalizedBin has the normalized size and location of a single bin
+type NormalizedBin struct {
 	Size  float64
 	Chunk bgzf.Chunk
 }
@@ -124,8 +123,39 @@ func (s *SampleIndex) bins() ([][]RawBin, error) {
 	return bins, nil
 }
 
+// RawBins returns the raw bin data for the sample
+func (s *SampleIndex) RawBins() (map[RefBlock]RawBin, []RefBlock, error) {
+	bins, err := s.bins()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	rawBins := make(map[RefBlock]RawBin)
+	refBlocks := make([]RefBlock, 0, 65536)
+
+	var (
+		pos    int
+		rName  string
+		rBlock RefBlock
+	)
+
+	for _, ref := range s.RefMap {
+		pos = 0
+		rName = ref.Name()
+		binsForRef := bins[ref.ID()]
+		for _, b := range binsForRef {
+			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384, Name: rName}
+			rawBins[rBlock] = RawBin{Size: b.Size, Chunk: b.Chunk}
+			pos += 16384
+			refBlocks = append(refBlocks, rBlock)
+		}
+	}
+
+	return rawBins, refBlocks, nil
+}
+
 // NormalizedBins returns the normalized BinData for the sample
-func (s *SampleIndex) NormalizedBins() (map[RefBlock]BinUnit, []RefBlock, error) {
+func (s *SampleIndex) NormalizedBins() (map[RefBlock]NormalizedBin, []RefBlock, error) {
 	bins, err := s.bins()
 	if err != nil {
 		return nil, nil, err
@@ -152,7 +182,7 @@ func (s *SampleIndex) NormalizedBins() (map[RefBlock]BinUnit, []RefBlock, error)
 		rBlock RefBlock
 	)
 
-	normedBins := make(map[RefBlock]BinUnit)
+	normedBins := make(map[RefBlock]NormalizedBin)
 	refBlocks := make([]RefBlock, 0, 65536)
 
 	for _, ref := range s.RefMap {
@@ -162,7 +192,7 @@ func (s *SampleIndex) NormalizedBins() (map[RefBlock]BinUnit, []RefBlock, error)
 		for _, b := range binsForRef {
 			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384, Name: rName}
 			normed = float64(b.Size) / medianBinSize
-			normedBins[rBlock] = BinUnit{Size: normed, Chunk: b.Chunk}
+			normedBins[rBlock] = NormalizedBin{Size: normed, Chunk: b.Chunk}
 			pos += 16384
 			refBlocks = append(refBlocks, rBlock)
 		}
