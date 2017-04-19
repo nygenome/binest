@@ -1,0 +1,19 @@
+hash: 689ec21094c66869ac69ac1beffa12d2b78561a31d879ddd6402d6f0a327c783
+updated: 2017-04-18T21:07:33.361187372-04:00
+imports:
+- name: github.com/biogo/hts
+  version: 71ed6f0cedb14828957509ab40af023760e71cb8
+  subpackages:
+  - bam
+  - bgzf
+  - bgzf/index
+  - internal
+  - sam
+- name: github.com/biogo/store
+  version: 913427a1d5e89604e50ea1db0f28f34966d61602
+  subpackages:
+  - interval
+  - llrb
+- name: github.com/brentp/xopen
+  version: 83f195adad83cdc80142215b0d73b557b49b585c
+testImports: []
