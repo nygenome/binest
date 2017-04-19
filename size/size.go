@@ -10,7 +10,7 @@ import (
 	"github.com/omicsnut/binest"
 )
 
-// Run is the command line interface for binest cov
+// Run is the command line interface for binest size
 func Run() {
 	infile := flag.String("infile", "", "path to file with list of bam files")
 	flag.Parse()
@@ -64,7 +64,10 @@ func ProcessBamBins(bampaths <-chan string, results chan<- binest.NormBinData) {
 			defer bamFh.Close()
 
 			bamIdxFh, err := os.Open(fmt.Sprintf("%s.bai", bampath))
-			binest.CheckError(err)
+			if err != nil {
+				bamIdxFh, err = os.Open(bampath[:len(bampath)-4] + ".bai")
+				binest.CheckError(err)
+			}
 			defer bamIdxFh.Close()
 
 			bamRdr, err := bam.NewReader(bamFh, 2)
