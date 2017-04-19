@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/biogo/hts/bam"
 
@@ -14,7 +15,8 @@ import (
 // Run is the command line interface for binest sex
 func Run() {
 	infile := flag.String("in", "", "path to file with list of bam files")
-	outfile := flag.String("out", "", "path to output file. Default - STDOUT")
+	outfile := flag.String("out", "", "path to output file (default STDOUT)")
+	sexChroms := flag.String("chroms", "X,Y", "comma separated X and Y chrom names in reference")
 	flag.Parse()
 
 	bampaths := make(chan string, 100)
@@ -30,7 +32,7 @@ func Run() {
 		outStream = os.Stdout
 	}
 
-	go EstimateSex(bampaths, results)
+	go EstimateSex(bampaths, results, strings.Split(*sexChroms, ","))
 	go writeResults(results, doneChan, outStream)
 
 	for _, b := range flag.Args() {
@@ -52,7 +54,7 @@ func Run() {
 }
 
 // EstimateSex estimates the sex of the samples from the BAM index
-func EstimateSex(bampaths <-chan string, results chan<- sexEstimate) {
+func EstimateSex(bampaths <-chan string, results chan<- sexEstimate, sChroms []string) {
 	for bampath := range bampaths {
 		func() {
 			bamFh, err := os.Open(bampath)
@@ -79,7 +81,7 @@ func EstimateSex(bampaths <-chan string, results chan<- sexEstimate) {
 			normedData, err := si.NormalizedBins()
 			binest.CheckError(err)
 
-			estimate := getSexEstimate(normedData)
+			estimate := getSexEstimate(normedData, sChroms)
 			estimate.sampleName = si.Name
 			results <- estimate
 		}()
@@ -89,15 +91,15 @@ func EstimateSex(bampaths <-chan string, results chan<- sexEstimate) {
 }
 
 // getSexEstimate gets the sexEstimate from the normalized bin data
-func getSexEstimate(d binest.NormBinData) sexEstimate {
+func getSexEstimate(d binest.NormBinData, sChroms []string) sexEstimate {
 	xSizes := make([]float64, 0, 16384)
 	ySizes := make([]float64, 0, 16384)
 
 	for refBlock, nBin := range d.Bins {
-		if refBlock.Name == "X" && nBin.Size > float64(0) {
+		if refBlock.Name == sChroms[0] && nBin.Size > float64(0) {
 			xSizes = append(xSizes, nBin.Size)
 		}
-		if refBlock.Name == "Y" && nBin.Size > float64(0) {
+		if refBlock.Name == sChroms[1] && nBin.Size > float64(0) {
 			ySizes = append(ySizes, nBin.Size)
 		}
 	}
