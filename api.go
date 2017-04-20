@@ -181,7 +181,8 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 		}
 	}
 
-	if len(mergedBinSizes) < 4096 {
+	fmt.Fprintf(os.Stderr, "Found %d usable bins in the index\n", len(mergedBinSizes))
+	if len(mergedBinSizes) < 1024 {
 		return NormBinData{}, ErrNotEnoughBins
 	}
 
