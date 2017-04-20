@@ -157,3 +157,20 @@ func Round(val float64, roundOn float64, places int) float64 {
 	}
 	return round / pow
 }
+
+// ReadIndex reads the index from bampath *.bam.bai and *.bai before failing
+func ReadIndex(b string) *os.File {
+	var bamIdxFh *os.File
+
+	if _, err := os.Stat(fmt.Sprintf("%s.bai", b)); err == nil {
+		bamIdxFh, err = os.Open(fmt.Sprintf("%s.bai", b))
+		CheckError(err)
+	} else if _, err = os.Stat(b[:len(b)-4] + ".bai"); err == nil {
+		bamIdxFh, err = os.Open(b[:len(b)-4] + ".bai")
+		CheckError(err)
+	} else {
+		panic(fmt.Errorf("No BAM index found for %s\n", b))
+	}
+
+	return bamIdxFh
+}
