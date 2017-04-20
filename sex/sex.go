@@ -166,7 +166,7 @@ func getSexEstimate(d binest.NormBinData) sexEstimate {
 }
 
 func writeResults(results <-chan sexEstimate, fin chan<- bool, outStream *os.File) {
-	fmt.Fprintf(os.Stderr, "#%s\n", BinestSexVersion)
+	fmt.Fprintf(os.Stderr, "#binest sex version %s\n", BinestSexVersion)
 	fmt.Println("#SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORMALIZED_XMEAN\tNORMALIZED_YMEAN")
 	for result := range results {
 		fmt.Fprintln(outStream, result)
