@@ -153,10 +153,3 @@ type sizeInfo struct {
 	sampleName string
 	binData    binest.NormBinData
 }
-
-// blockSizes holds the sizes of all samples in a refblock
-type blockSizes struct {
-	refBlock    uintptr
-	sampleNames []uint64
-	binSizes    []float64
-}
