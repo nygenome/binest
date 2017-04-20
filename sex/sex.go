@@ -4,25 +4,32 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 
 	"github.com/biogo/hts/bam"
+	"github.com/remeh/sizedwaitgroup"
 
 	"github.com/omicsnut/binest"
 )
 
+// Tag the current working version of sex subcommand for feature and bug tracking
+const BinestSexVersion = "0.1"
+
 // Run is the command line interface for binest sex
 func Run() {
 	infile := flag.String("in", "", "path to file with list of bam files")
-	sexChroms := flag.String("chroms", "X,Y", "comma separated X and Y chrom names in reference")
+	procs := flag.Int("procs", 1, "number of processors to use")
 	flag.Parse()
 
 	bampaths := make(chan string, 100)
 	results := make(chan sexEstimate, 100)
 	doneChan := make(chan bool, 1)
 
-	go EstimateSex(bampaths, results, strings.Split(*sexChroms, ","))
+	runtime.GOMAXPROCS(*procs)
+
+	go EstimateSex(bampaths, results, *procs)
 	go writeResults(results, doneChan, os.Stdout)
 
 	for _, b := range flag.Args() {
@@ -44,16 +51,31 @@ func Run() {
 }
 
 // EstimateSex estimates the sex of the samples from the BAM index
-func EstimateSex(bampaths <-chan string, results chan<- sexEstimate, sChroms []string) {
+func EstimateSex(bampaths <-chan string, estimates chan<- sexEstimate, procs int) {
+	var swg sizedwaitgroup.SizedWaitGroup
+	if procs == 1 {
+		// To maintain input order use only one goroutine
+		// equivalent to calling func without `go`
+		swg = sizedwaitgroup.New(1)
+	} else {
+		swg = sizedwaitgroup.New(procs * 4)
+	}
+
 	for bampath := range bampaths {
-		func() {
-			bamFh, err := os.Open(bampath)
+		swg.Add()
+
+		go func(b string, results chan<- sexEstimate) {
+			defer swg.Done()
+
+			bamFh, err := os.Open(b)
 			binest.CheckError(err)
 			defer bamFh.Close()
 
-			bamIdxFh, err := os.Open(fmt.Sprintf("%s.bai", bampath))
-			if err != nil {
-				bamIdxFh, err = os.Open(bampath[:len(bampath)-4] + ".bai")
+			bamIdxFh, err := os.Open(fmt.Sprintf("%s.bai", b))
+			if err == os.ErrNotExist {
+				bamIdxFh, err = os.Open(b[:len(b)-4] + ".bai")
+				binest.CheckError(err)
+			} else {
 				binest.CheckError(err)
 			}
 			defer bamIdxFh.Close()
@@ -71,25 +93,32 @@ func EstimateSex(bampaths <-chan string, results chan<- sexEstimate, sChroms []s
 			normedData, err := si.NormalizedBins()
 			binest.CheckError(err)
 
-			estimate := getSexEstimate(normedData, sChroms)
+			estimate := getSexEstimate(normedData)
 			estimate.sampleName = si.Name
 			results <- estimate
-		}()
+
+		}(bampath, estimates)
 	}
 
-	close(results)
+	swg.Wait()
+	close(estimates)
 }
 
 // getSexEstimate gets the sexEstimate from the normalized bin data
-func getSexEstimate(d binest.NormBinData, sChroms []string) sexEstimate {
+func getSexEstimate(d binest.NormBinData) sexEstimate {
 	xSizes := make([]float64, 0, 16384)
 	ySizes := make([]float64, 0, 16384)
 
+	var chromPrefix string
+	if strings.HasPrefix(d.Blocks[0].Name, "chr") {
+		chromPrefix = "chr"
+	}
+
 	for refBlock, nBin := range d.Bins {
-		if refBlock.Name == sChroms[0] && nBin.Size > float64(0) {
+		if refBlock.Name == (chromPrefix+"X") && nBin.Size > float64(0) {
 			xSizes = append(xSizes, nBin.Size)
 		}
-		if refBlock.Name == sChroms[1] && nBin.Size > float64(0) {
+		if refBlock.Name == (chromPrefix+"Y") && nBin.Size > float64(0) {
 			ySizes = append(ySizes, nBin.Size)
 		}
 	}
@@ -123,8 +152,8 @@ func getSexEstimate(d binest.NormBinData, sChroms []string) sexEstimate {
 		yCopy = uint8(1)
 	} else {
 		gender = "unknown"
-		xCopy = uint8(xMedian)
-		yCopy = uint8(yMedian)
+		xCopy = uint8(binest.Round(xMedian, 0.7, 0))
+		yCopy = uint8(binest.Round(yMedian, 0.7, 0))
 	}
 
 	return sexEstimate{
@@ -137,6 +166,7 @@ func getSexEstimate(d binest.NormBinData, sChroms []string) sexEstimate {
 }
 
 func writeResults(results <-chan sexEstimate, fin chan<- bool, outStream *os.File) {
+	fmt.Fprintf(os.Stderr, "#%s\n", BinestSexVersion)
 	fmt.Println("#SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORMALIZED_XMEAN\tNORMALIZED_YMEAN")
 	for result := range results {
 		fmt.Fprintln(outStream, result)
