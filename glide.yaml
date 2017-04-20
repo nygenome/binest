@@ -10,3 +10,4 @@ import:
   subpackages:
   - interval
 - package: github.com/brentp/xopen
+- package: github.com/remeh/sizedwaitgroup

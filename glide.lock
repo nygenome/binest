@@ -1,5 +1,5 @@
-hash: 689ec21094c66869ac69ac1beffa12d2b78561a31d879ddd6402d6f0a327c783
-updated: 2017-04-18T21:07:33.361187372-04:00
+hash: 52e8960702a845e3e930fe36420852f7dbc47441c48243abe63d1dff5dbb99b6
+updated: 2017-04-20T09:31:49.060299941-04:00
 imports:
 - name: github.com/biogo/hts
   version: 71ed6f0cedb14828957509ab40af023760e71cb8
@@ -16,4 +16,6 @@ imports:
   - llrb
 - name: github.com/brentp/xopen
   version: 83f195adad83cdc80142215b0d73b557b49b585c
+- name: github.com/remeh/sizedwaitgroup
+  version: 4b44541c93591ee0e73747d6081e61bd8c58b5c7
 testImports: []
