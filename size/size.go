@@ -3,9 +3,14 @@ package size
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/biogo/hts/bam"
+	"github.com/remeh/sizedwaitgroup"
 
 	"github.com/omicsnut/binest"
 )
@@ -13,12 +18,15 @@ import (
 // Run is the command line interface for binest size
 func Run() {
 	infile := flag.String("infile", "", "path to file with list of bam files")
+	procs := flag.Int("procs", 1, "number of processors to use")
 	flag.Parse()
 
 	bampaths := make(chan string, 100)
+	results := make(chan sizeInfo, 100)
 	doneChan := make(chan bool, 1)
 
-	go EstimateSizes(bampaths, doneChan)
+	go EstimateSize(bampaths, results, *procs)
+	go writeResults(results, doneChan, os.Stdout)
 
 	for _, b := range flag.Args() {
 		bampaths <- b
@@ -38,36 +46,21 @@ func Run() {
 	<-doneChan
 }
 
-// EstimateSizes estimates the coverage excluding the regions in the bed file
-func EstimateSizes(bampaths <-chan string, doneChan chan<- bool) {
-	results := make(chan binest.NormBinData, 100)
+// EstimateSize gets the normalized bin sizes of samples possibly concurrently
+func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
+	swg := sizedwaitgroup.New(procs * 4)
 
-	go ProcessBamBins(bampaths, results)
-
-	for result := range results {
-		for _, refBlock := range result.Blocks {
-			fmt.Fprintf(os.Stdout, "%s\t%d\t%d\t%.10f\n",
-				refBlock.Name, refBlock.Start, refBlock.End,
-				result.Bins[refBlock].Size)
-		}
-	}
-
-	doneChan <- true
-}
-
-// ProcessBamBins reads bampaths from a channel and puts the per bin data to results channel
-func ProcessBamBins(bampaths <-chan string, results chan<- binest.NormBinData) {
 	for bampath := range bampaths {
-		func() {
-			bamFh, err := os.Open(bampath)
+		swg.Add()
+
+		go func(b string, results chan<- sizeInfo) {
+			defer swg.Done()
+
+			bamFh, err := os.Open(b)
 			binest.CheckError(err)
 			defer bamFh.Close()
 
-			bamIdxFh, err := os.Open(fmt.Sprintf("%s.bai", bampath))
-			if err != nil {
-				bamIdxFh, err = os.Open(bampath[:len(bampath)-4] + ".bai")
-				binest.CheckError(err)
-			}
+			bamIdxFh := binest.ReadIndex(b)
 			defer bamIdxFh.Close()
 
 			bamRdr, err := bam.NewReader(bamFh, 2)
@@ -83,9 +76,87 @@ func ProcessBamBins(bampaths <-chan string, results chan<- binest.NormBinData) {
 			normedData, err := si.NormalizedBins()
 			binest.CheckError(err)
 
-			results <- normedData
-		}()
+			results <- sizeInfo{sampleName: si.Name, binData: normedData}
+
+		}(bampath, sizes)
 	}
 
-	close(results)
+	swg.Wait()
+	close(sizes)
+}
+
+// writeResults writes to io.Writer after combining data from all samples
+func writeResults(results <-chan sizeInfo, fin chan<- bool, outStream io.Writer) {
+	mergedSizes := make(map[binest.RefBlock]map[string]float64)
+	uniqSamples := make(map[string]bool)
+
+	for result := range results {
+		uniqSamples[result.sampleName] = true
+		for _, refBlock := range result.binData.Blocks {
+			if _, ok := mergedSizes[refBlock]; !ok {
+				mergedSizes[refBlock] = make(map[string]float64)
+			}
+			mergedSizes[refBlock][result.sampleName] = result.binData.Bins[refBlock].Size
+		}
+	}
+
+	samples := make([]string, 0, len(uniqSamples))
+	for s, _ := range uniqSamples {
+		samples = append(samples, s)
+	}
+
+	sortedRefBlocks := getSortedBlocks(mergedSizes)
+	fmt.Fprintf(outStream, "#CHROM\tSTART\tEND\t%s\n", strings.Join(samples, "\t"))
+
+	for _, rBlock := range sortedRefBlocks {
+		fmt.Fprintf(outStream, "%s\t%d\t%d\t%s\n",
+			rBlock.Name, rBlock.Start, rBlock.End,
+			getSizesString(mergedSizes[rBlock], samples))
+	}
+
+	fin <- true
+}
+
+// getSizesString gets the sizes of all samples as a string to be written
+func getSizesString(m map[string]float64, samples []string) string {
+	results := make([]string, len(samples))
+
+	for idx, s := range samples {
+		results[idx] = strconv.FormatFloat(m[s], 'f', -1, 64)
+	}
+
+	return strings.Join(results, "\t")
+}
+
+// getSortedBlocks sorts the ref blocks from the map
+func getSortedBlocks(m map[binest.RefBlock]map[string]float64) []binest.RefBlock {
+	blocks := make([]binest.RefBlock, 0, len(m))
+
+	for rBlock, _ := range m {
+		blocks = append(blocks, rBlock)
+	}
+
+	sort.Slice(blocks, func(i, j int) bool {
+		switch blocks[i].RefID - blocks[j].RefID {
+		case 0:
+			return blocks[i].Start < blocks[j].Start
+		default:
+			return blocks[i].RefID < blocks[j].RefID
+		}
+	})
+
+	return blocks
+}
+
+// sizeInfo holds the normalized bin data and sample name
+type sizeInfo struct {
+	sampleName string
+	binData    binest.NormBinData
+}
+
+// blockSizes holds the sizes of all samples in a refblock
+type blockSizes struct {
+	refBlock    uintptr
+	sampleNames []uint64
+	binSizes    []float64
 }

@@ -3,6 +3,7 @@ package sex
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"sort"
@@ -71,17 +72,7 @@ func EstimateSex(bampaths <-chan string, estimates chan<- sexEstimate, procs int
 			binest.CheckError(err)
 			defer bamFh.Close()
 
-			var bamIdxFh *os.File
-			if _, err = os.Stat(fmt.Sprintf("%s.bai", b)); err == nil {
-				bamIdxFh, err = os.Open(fmt.Sprintf("%s.bai", b))
-				binest.CheckError(err)
-			} else if _, err = os.Stat(b[:len(b)-4] + ".bai"); err == nil {
-				bamIdxFh, err = os.Open(b[:len(b)-4] + ".bai")
-				binest.CheckError(err)
-			} else {
-				panic(fmt.Errorf("No BAM index found for %s\n", b))
-			}
-
+			bamIdxFh := binest.ReadIndex(b)
 			defer bamIdxFh.Close()
 
 			bamRdr, err := bam.NewReader(bamFh, 2)
@@ -169,7 +160,7 @@ func getSexEstimate(d binest.NormBinData) sexEstimate {
 	}
 }
 
-func writeResults(results <-chan sexEstimate, fin chan<- bool, outStream *os.File) {
+func writeResults(results <-chan sexEstimate, fin chan<- bool, outStream io.Writer) {
 	fmt.Fprintf(os.Stderr, "#binest sex version %s\n", BinestSexVersion)
 	fmt.Println("#SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORMALIZED_XMEAN\tNORMALIZED_YMEAN")
 	for result := range results {
