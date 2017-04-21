@@ -101,7 +101,7 @@ func writeResults(results <-chan sizeInfo, fin chan<- bool, outStream io.Writer)
 	}
 
 	samples := make([]string, 0, len(uniqSamples))
-	for s, _ := range uniqSamples {
+	for s := range uniqSamples {
 		samples = append(samples, s)
 	}
 
@@ -132,7 +132,7 @@ func getSizesString(m map[string]float64, samples []string) string {
 func getSortedBlocks(m map[binest.RefBlock]map[string]float64) []binest.RefBlock {
 	blocks := make([]binest.RefBlock, 0, len(m))
 
-	for rBlock, _ := range m {
+	for rBlock := range m {
 		blocks = append(blocks, rBlock)
 	}
 
