@@ -43,7 +43,6 @@ type referenceStats struct {
 
 // RefBlock is a chunk in the genome implementing biogo's IntInterface
 type RefBlock struct {
-	Name  string
 	RefID int
 	Start int
 	End   int
@@ -147,16 +146,14 @@ func (s *SampleIndex) RawBins() (RawBinData, error) {
 
 	var (
 		pos    int
-		rName  string
 		rBlock RefBlock
 	)
 
 	for _, ref := range s.RefMap {
 		pos = 0
-		rName = ref.Name()
 		binsForRef := bins[ref.ID()]
 		for _, b := range binsForRef {
-			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384, Name: rName}
+			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384}
 			rawBins[rBlock] = rawBin{Size: b.Size, Chunk: b.Chunk}
 			pos += 16384
 			refBlocks = append(refBlocks, rBlock)
@@ -191,7 +188,6 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 
 	var (
 		pos    int
-		rName  string
 		normed float64
 		rBlock RefBlock
 	)
@@ -201,10 +197,9 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 
 	for _, ref := range s.RefMap {
 		pos = 0
-		rName = ref.Name()
 		binsForRef := bins[ref.ID()]
 		for _, b := range binsForRef {
-			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384, Name: rName}
+			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384}
 			normed = float64(b.Size) / medianBinSize
 			normedBins[rBlock] = NormBin{Size: normed, Chunk: b.Chunk}
 			pos += 16384
