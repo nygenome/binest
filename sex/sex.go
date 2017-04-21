@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/biogo/hts/bam"
+	"github.com/biogo/hts/sam"
 	"github.com/remeh/sizedwaitgroup"
 
 	"github.com/omicsnut/binest"
@@ -108,7 +109,7 @@ func EstimateSex(bampaths <-chan string, estimates chan<- sexEstimate, procs int
 			normedData, err := si.NormalizedBins()
 			binest.CheckError(err)
 
-			estimate := getSexEstimate(normedData)
+			estimate := getSexEstimate(normedData, si.RefMap)
 			estimate.sampleName = si.Name
 			results <- estimate
 
@@ -120,20 +121,20 @@ func EstimateSex(bampaths <-chan string, estimates chan<- sexEstimate, procs int
 }
 
 // getSexEstimate gets the sexEstimate from the normalized bin data
-func getSexEstimate(d binest.NormBinData) sexEstimate {
+func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference) sexEstimate {
 	xSizes := make([]float64, 0, 16384)
 	ySizes := make([]float64, 0, 16384)
 
 	var chromPrefix string
-	if strings.HasPrefix(d.Blocks[0].Name, "chr") {
+	if strings.HasPrefix(m[d.Blocks[0].RefID].Name(), "chr") {
 		chromPrefix = "chr"
 	}
 
 	for refBlock, nBin := range d.Bins {
-		if refBlock.Name == (chromPrefix+"X") && nBin.Size > float64(0) {
+		if m[refBlock.RefID].Name() == (chromPrefix+"X") && nBin.Size > float64(0) {
 			xSizes = append(xSizes, nBin.Size)
 		}
-		if refBlock.Name == (chromPrefix+"Y") && nBin.Size > float64(0) {
+		if m[refBlock.RefID].Name() == (chromPrefix+"Y") && nBin.Size > float64(0) {
 			ySizes = append(ySizes, nBin.Size)
 		}
 	}
