@@ -21,6 +21,15 @@ func Run() {
 	procs := flag.Int("procs", 1, "number of processors to use")
 	flag.Parse()
 
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage 1: %s -procs 4 BAM1 BAM2 ...\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage 2: %s -infile FILE_WITH_LIST_OF_BAM_FILES\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage 3: `pipe bamfile paths` | %s \n\n", os.Args[0])
+		fmt.Fprint(os.Stderr, "Output is written to STDOUT\n\nOptions:\n")
+		flag.PrintDefaults()
+	}
+
 	bampaths := make(chan string, 100)
 	results := make(chan sizeInfo, 100)
 	doneChan := make(chan bool, 1)
@@ -50,7 +59,7 @@ func Run() {
 	close(bampaths)
 
 	if !gotInput {
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 
