@@ -28,21 +28,32 @@ func Run() {
 	go EstimateSize(bampaths, results, *procs)
 	go writeResults(results, doneChan, os.Stdout)
 
+	var gotInput bool
+
 	for _, b := range flag.Args() {
 		bampaths <- b
+		gotInput = true
 	}
 
 	if binest.HasStdin() {
 		binest.StreamLines(os.Stdin, bampaths)
+		gotInput = true
 	}
 
 	if *infile != "" {
 		fh, err := os.Open(*infile)
 		binest.CheckError(err)
 		binest.StreamLines(fh, bampaths)
+		gotInput = true
 	}
 
 	close(bampaths)
+
+	if !gotInput {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
 	<-doneChan
 }
 

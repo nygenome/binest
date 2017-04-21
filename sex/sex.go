@@ -15,7 +15,7 @@ import (
 	"github.com/omicsnut/binest"
 )
 
-// Tag the current working version of sex subcommand for feature and bug tracking
+// BinestSexVersion is the tagged version of sex subcommand for feature and bug tracking
 const BinestSexVersion = "0.1"
 
 // Run is the command line interface for binest sex
@@ -33,21 +33,32 @@ func Run() {
 	go EstimateSex(bampaths, results, *procs)
 	go writeResults(results, doneChan, os.Stdout)
 
+	var gotInput bool
+
 	for _, b := range flag.Args() {
 		bampaths <- b
+		gotInput = true
 	}
 
 	if *infile != "" {
 		fh, err := os.Open(*infile)
 		binest.CheckError(err)
 		binest.StreamLines(fh, bampaths)
+		gotInput = true
 	}
 
 	if binest.HasStdin() {
 		binest.StreamLines(os.Stdin, bampaths)
+		gotInput = true
 	}
 
 	close(bampaths)
+
+	if !gotInput {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
 	<-doneChan
 }
 
