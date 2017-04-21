@@ -20,7 +20,7 @@ const BinestSexVersion = "0.1"
 
 // Run is the command line interface for binest sex
 func Run() {
-	infile := flag.String("in", "", "path to file with list of bam files")
+	infile := flag.String("infile", "", "path to file with list of bam files")
 	procs := flag.Int("procs", 1, "number of processors to use")
 	flag.Parse()
 
