@@ -13,15 +13,13 @@ import (
 )
 
 func main() {
+	var mode string
 	cmds := []string{"chunk", "cnv", "size", "sex"}
 
-	if len(os.Args) == 1 {
+	if len(os.Args) <= 1 {
 		fmt.Fprintf(os.Stderr, "binest %s Available subcommands: %s\n", binest.Version, strings.Join(cmds, ", "))
 		os.Exit(0)
-	}
-
-	var mode string
-	if len(os.Args) > 1 {
+	} else {
 		mode = os.Args[1]
 		os.Args[0] += fmt.Sprintf(" %s", mode)
 		os.Args = append(os.Args[:1], os.Args[2:]...)
