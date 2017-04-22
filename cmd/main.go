@@ -13,8 +13,10 @@ import (
 )
 
 func main() {
+	cmds := []string{"chunk", "cnv", "size", "sex"}
+
 	if len(os.Args) == 1 {
-		fmt.Fprintf(os.Stderr, "binest %s Available subcommands: chunk, cnv, size and sex\n", binest.Version)
+		fmt.Fprintf(os.Stderr, "binest %s Available subcommands: %s\n", binest.Version, strings.Join(cmds, ", "))
 		os.Exit(0)
 	}
 
@@ -36,7 +38,7 @@ func main() {
 		sex.Run()
 	default:
 		msg := fmt.Sprintf("%s not a valid command!\n", strings.Join(os.Args, " "))
-		msg += "Available subcommands: chunk, cnv, size and sex"
+		msg += fmt.Sprintf("Available subcommands: %s\n", strings.Join(cmds, ", "))
 		fmt.Fprintln(os.Stderr, msg)
 		os.Exit(1)
 	}

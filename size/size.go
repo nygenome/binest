@@ -114,9 +114,7 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
 // writeResults writes to io.Writer after combining data from all samples
 func writeResults(results <-chan sizeInfo, fin chan<- bool, outStream io.Writer) {
 	for result := range results {
-		fmt.Fprintf(os.Stdout, "%s\t%d\t%d\t%s\t%s\n",
-			result.rName, result.start, result.end, result.sample,
-			strconv.FormatFloat(result.size, 'f', -1, 64))
+		fmt.Fprintln(outStream, result)
 	}
 
 	fin <- true
@@ -129,4 +127,11 @@ type sizeInfo struct {
 	start  int
 	end    int
 	size   float64
+}
+
+// String implements the Stringer interface for sizeInfo
+func (s sizeInfo) String() string {
+	return fmt.Sprintf("%s\t%d\t%d\t%s\t%s",
+		s.rName, s.start, s.end, s.sample,
+		strconv.FormatFloat(s.size, 'f', -1, 64))
 }

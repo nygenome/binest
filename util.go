@@ -20,8 +20,8 @@ import (
 // bedRecord is a regex which will match chrom:start-end and chrom\tstart\tend
 var bedRecord = regexp.MustCompile("(.+?)[:\t](\\d+)([\\-\t])(\\d+).*?")
 
-// parseBedRecord reads a bed record from a line
-func parseBedRecord(line []byte) (string, int, int) {
+// ParseRegion reads a bed record from a line
+func ParseRegion(line []byte) (string, int, int) {
 	parsed := bedRecord.FindSubmatch(line)
 	if len(parsed) != 5 {
 		panic(fmt.Errorf("Couldn't parse genomic region from bed line - %s", string(line)))
@@ -129,7 +129,7 @@ func ReadBed(bedPath string, chromToID map[string]int) map[int]*interval.IntTree
 			break
 		}
 		CheckError(err)
-		chrom, start, end := parseBedRecord(line)
+		chrom, start, end := ParseRegion(line)
 
 		if refID, ok := chromToID[chrom]; ok {
 			if _, ok := tree[refID]; !ok {
@@ -169,7 +169,7 @@ func ReadIndex(b string) *os.File {
 		bamIdxFh, err = os.Open(b[:len(b)-4] + ".bai")
 		CheckError(err)
 	} else {
-		panic(fmt.Errorf("No BAM index found for %s\n", b))
+		panic(fmt.Errorf("no BAM index found for %s", b))
 	}
 
 	return bamIdxFh
