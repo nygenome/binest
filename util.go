@@ -66,7 +66,7 @@ func BgzfOffset(v int64) bgzf.Offset {
 	}
 }
 
-// MedianInt64 gets the median for a slice of bin sizes
+// MedianInt64 gets the median for a slice of int64's
 func MedianInt64(input []int64) float64 {
 	arrLen := len(input)
 	sort.Slice(input, func(i, j int) bool { return input[i] < input[j] })
@@ -88,7 +88,7 @@ func MedianInt64(input []int64) float64 {
 	return median
 }
 
-// MedianFloat64 gets the median for a slice of bin sizes
+// MedianFloat64 gets the median for a slice of float64's
 func MedianFloat64(input []float64) float64 {
 	arrLen := len(input)
 	sort.Slice(input, func(i, j int) bool { return input[i] < input[j] })
@@ -108,6 +108,15 @@ func MedianFloat64(input []float64) float64 {
 	}
 
 	return median
+}
+
+// MeanFloat64 gets the mean for a slice of float64's
+func MeanFloat64(input []float64) float64 {
+	var sum float64
+	for _, val := range input {
+		sum += val
+	}
+	return sum / float64(len(input))
 }
 
 // ShuffleChunks shuffles BGZF chunks using the fisher yates method
