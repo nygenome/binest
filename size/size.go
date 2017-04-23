@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"strconv"
 
@@ -102,7 +101,7 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
 					start:  rBlock.Start,
 					end:    rBlock.End,
 					rName:  si.RefMap[rBlock.RefID].Name(),
-					size:   math.Log2(normedData.Bins[rBlock]),
+					size:   normedData.Bins[rBlock] - 1,
 				}
 			}
 
