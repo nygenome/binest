@@ -114,16 +114,17 @@ func EstimateCopy(bampaths <-chan string, estimates chan<- copyEstimate, ploidy 
 
 // getCopyEstimate gets the per sample copy estimate from normalized bin data
 func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int) copyEstimate {
-	chroms := make([]string, len(m))
-	sizes := make(map[string][]float64, len(m))
-	estimates := make(map[string]chromEstimate, len(m))
+	chroms := make([]string, 0, len(m))
 
 	for idx := range chroms {
 		if strings.HasPrefix(m[idx].Name(), "GL") {
 			continue
 		}
-		chroms[idx] = m[idx].Name()
+		chroms = append(chroms, m[idx].Name())
 	}
+
+	sizes := make(map[string][]float64, len(chroms))
+	estimates := make(map[string]chromEstimate, len(chroms))
 
 	var (
 		chrom         string
