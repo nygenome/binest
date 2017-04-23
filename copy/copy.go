@@ -133,7 +133,7 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 			strings.HasSuffix(chrom, "alt") {
 			continue
 		}
-		chroms[idx] = m[idx].Name()
+		chroms = append(chroms, chrom)
 	}
 
 	sizes := make(map[string][]float64, len(chroms))
@@ -146,7 +146,6 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 
 		chrom = m[refBlock.RefID].Name()
 		if strings.HasPrefix(chrom, "GL") ||
-			strings.HasPrefix(chrom, "chrUn") ||
 			strings.HasPrefix(chrom, "HLA") ||
 			strings.HasSuffix(chrom, "random") ||
 			strings.HasSuffix(chrom, "decoy") ||
