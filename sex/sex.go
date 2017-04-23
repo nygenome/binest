@@ -63,6 +63,7 @@ func Run() {
 	close(bampaths)
 
 	if !gotInput {
+		fmt.Fprintln(os.Stderr, "No bam files provided to process!")
 		flag.Usage()
 		os.Exit(1)
 	}
