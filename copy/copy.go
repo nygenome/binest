@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/sam"
@@ -113,13 +114,7 @@ func EstimateCopy(bampaths <-chan string, estimates chan<- copyEstimate, ploidy 
 
 // getCopyEstimate gets the per sample copy estimate from normalized bin data
 func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int) copyEstimate {
-	chroms := make([]string, len(m))
-	sizes := make(map[string][]float64, len(m))
-	estimates := make(map[string]chromEstimate, len(m))
-
-	for idx := range chroms {
-		chroms[idx] = m[idx].Name()
-	}
+	chroms := make([]string, 0, len(m))
 
 	var (
 		chrom         string
@@ -127,12 +122,39 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 		estChromCopy  uint8
 	)
 
+	for idx := range chroms {
+		chrom = m[idx].Name()
+		if strings.HasPrefix(chrom, "GL") ||
+			strings.HasPrefix(chrom, "chrUn") ||
+			strings.HasPrefix(chrom, "HLA") ||
+			strings.HasSuffix(chrom, "random") ||
+			strings.HasSuffix(chrom, "decoy") ||
+			strings.HasSuffix(chrom, "EBV") ||
+			strings.HasSuffix(chrom, "alt") {
+			continue
+		}
+		chroms[idx] = m[idx].Name()
+	}
+
+	sizes := make(map[string][]float64, len(chroms))
+	estimates := make(map[string]chromEstimate, len(chroms))
+
 	for refBlock, binSize := range d.Bins {
 		if binSize <= float64(0) {
 			continue
 		}
 
 		chrom = m[refBlock.RefID].Name()
+		if strings.HasPrefix(chrom, "GL") ||
+			strings.HasPrefix(chrom, "chrUn") ||
+			strings.HasPrefix(chrom, "HLA") ||
+			strings.HasSuffix(chrom, "random") ||
+			strings.HasSuffix(chrom, "decoy") ||
+			strings.HasSuffix(chrom, "EBV") ||
+			strings.HasSuffix(chrom, "alt") {
+			continue
+		}
+
 		if _, ok := sizes[chrom]; ok {
 			sizes[chrom] = append(sizes[chrom], binSize)
 		} else {
@@ -144,6 +166,10 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 	for chrom, chromSizes := range sizes {
 		if len(chromSizes) > 2 {
 			normChromCopy = float64(ploidy) * binest.MedianFloat64(chromSizes)
+			estChromCopy = uint8(binest.Round(normChromCopy, 0.7, 0))
+			estimates[chrom] = chromEstimate{normCopy: normChromCopy, estCopy: estChromCopy}
+		} else if len(chromSizes) == 1 {
+			normChromCopy = float64(ploidy) * chromSizes[0]
 			estChromCopy = uint8(binest.Round(normChromCopy, 0.7, 0))
 			estimates[chrom] = chromEstimate{normCopy: normChromCopy, estCopy: estChromCopy}
 		} else {
