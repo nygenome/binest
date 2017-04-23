@@ -88,6 +88,28 @@ func MedianInt64(input []int64) float64 {
 	return median
 }
 
+// MedianFloat64 gets the median for a slice of bin sizes
+func MedianFloat64(input []float64) float64 {
+	arrLen := len(input)
+	sort.Slice(input, func(i, j int) bool { return input[i] < input[j] })
+
+	var median float64
+	if arrLen%2 == 0 {
+		median = float64(input[arrLen/2-1]+input[arrLen/2+1]) / float64(2)
+	} else {
+		median = float64(input[arrLen/2])
+	}
+
+	if median == 0 {
+		curIdx := arrLen / 2
+		for ; curIdx < arrLen && input[curIdx] == 0; curIdx++ {
+		}
+		return MedianFloat64(input[curIdx:])
+	}
+
+	return median
+}
+
 // ShuffleChunks shuffles BGZF chunks using the fisher yates method
 func ShuffleChunks(c []bgzf.Chunk) {
 	for i := range c {
