@@ -7,7 +7,6 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"strings"
 
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/sam"
@@ -114,17 +113,13 @@ func EstimateCopy(bampaths <-chan string, estimates chan<- copyEstimate, ploidy 
 
 // getCopyEstimate gets the per sample copy estimate from normalized bin data
 func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int) copyEstimate {
-	chroms := make([]string, 0, len(m))
+	chroms := make([]string, len(m))
+	sizes := make(map[string][]float64, len(m))
+	estimates := make(map[string]chromEstimate, len(m))
 
 	for idx := range chroms {
-		if strings.HasPrefix(m[idx].Name(), "GL") {
-			continue
-		}
-		chroms = append(chroms, m[idx].Name())
+		chroms[idx] = m[idx].Name()
 	}
-
-	sizes := make(map[string][]float64, len(chroms))
-	estimates := make(map[string]chromEstimate, len(chroms))
 
 	var (
 		chrom         string
@@ -138,10 +133,6 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 		}
 
 		chrom = m[refBlock.RefID].Name()
-		if strings.HasPrefix(chrom, "GL") {
-			continue
-		}
-
 		if _, ok := sizes[chrom]; ok {
 			sizes[chrom] = append(sizes[chrom], binSize)
 		} else {
