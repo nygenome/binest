@@ -122,10 +122,9 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 		estChromCopy  uint8
 	)
 
-	for idx := range chroms {
+	for idx := range m {
 		chrom = m[idx].Name()
 		if strings.HasPrefix(chrom, "GL") ||
-			strings.HasPrefix(chrom, "chrUn") ||
 			strings.HasPrefix(chrom, "HLA") ||
 			strings.HasSuffix(chrom, "random") ||
 			strings.HasSuffix(chrom, "decoy") ||
