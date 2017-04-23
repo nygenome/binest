@@ -141,8 +141,8 @@ func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference) sexEstimate 
 		normXCopy float64
 		normYCopy float64
 		gender    string
-		xCopy     uint8
-		yCopy     uint8
+		xCopy     uint32
+		yCopy     uint32
 	)
 
 	// Assuming ploidy of 2
@@ -155,16 +155,16 @@ func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference) sexEstimate 
 
 	if normXCopy >= float64(1.7) && normXCopy <= float64(2.3) && normYCopy <= float64(0.3) {
 		gender = "female"
-		xCopy = uint8(2)
-		yCopy = uint8(0)
+		xCopy = uint32(2)
+		yCopy = uint32(0)
 	} else if normXCopy >= float64(0.7) && normXCopy <= float64(1.3) && normYCopy >= float64(0.7) && normYCopy <= float64(1.3) {
 		gender = "male"
-		xCopy = uint8(1)
-		yCopy = uint8(1)
+		xCopy = uint32(1)
+		yCopy = uint32(1)
 	} else {
 		gender = "unknown"
-		xCopy = uint8(binest.Round(normXCopy, 0.7, 0))
-		yCopy = uint8(binest.Round(normYCopy, 0.7, 0))
+		xCopy = uint32(binest.Round(normXCopy, 0.7, 0))
+		yCopy = uint32(binest.Round(normYCopy, 0.7, 0))
 	}
 
 	return sexEstimate{
@@ -187,8 +187,8 @@ func writeResults(results <-chan sexEstimate, fin chan<- bool, outStream io.Writ
 // sexEstimate holds the result of the sex estimate of the sample
 type sexEstimate struct {
 	gender     string
-	xCopy      uint8
-	yCopy      uint8
+	xCopy      uint32
+	yCopy      uint32
 	sampleName string
 	normXCopy  float64
 	normYCopy  float64
