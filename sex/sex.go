@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -146,15 +145,12 @@ func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference) sexEstimate 
 		yCopy     uint8
 	)
 
-	sort.Slice(xSizes, func(i, j int) bool { return xSizes[i] < xSizes[j] })
-	sort.Slice(ySizes, func(i, j int) bool { return ySizes[i] < ySizes[j] })
-
 	// Assuming ploidy of 2
 	if len(xSizes) > 0 {
-		normXCopy = float64(2) * xSizes[int(float64(len(xSizes))/2)]
+		normXCopy = float64(2) * binest.MedianFloat64(xSizes)
 	}
 	if len(ySizes) > 0 {
-		normYCopy = float64(2) * ySizes[int(float64(len(ySizes))/2)]
+		normYCopy = float64(2) * binest.MedianFloat64(ySizes)
 	}
 
 	if normXCopy >= float64(1.7) && normXCopy <= float64(2.3) && normYCopy <= float64(0.3) {
@@ -181,7 +177,7 @@ func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference) sexEstimate 
 }
 
 func writeResults(results <-chan sexEstimate, fin chan<- bool, outStream io.Writer) {
-	fmt.Println("SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tESTIMATED_XCOPIES\tESTIMATED_YCOPIES")
+	fmt.Println("SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tESTIMATED_XSIZE\tESTIMATED_YSIZE")
 	for result := range results {
 		fmt.Fprintln(outStream, result)
 	}
