@@ -167,8 +167,8 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 			normChromCopy = float64(ploidy) * binest.MedianFloat64(chromSizes)
 			estChromCopy = uint32(binest.Round(normChromCopy, 0.7, 0))
 			estimates[chrom] = chromEstimate{normCopy: normChromCopy, estCopy: estChromCopy}
-		} else if len(chromSizes) == 1 {
-			normChromCopy = float64(ploidy) * chromSizes[0]
+		} else if len(chromSizes) > 0 {
+			normChromCopy = float64(ploidy) * binest.MeanFloat64(chromSizes)
 			estChromCopy = uint32(binest.Round(normChromCopy, 0.7, 0))
 			estimates[chrom] = chromEstimate{normCopy: normChromCopy, estCopy: estChromCopy}
 		} else {
