@@ -17,6 +17,7 @@ import (
 // Run is the command line interface for binest size
 func Run() {
 	infile := flag.String("infile", "", "path to file with list of bam files")
+	ploidy := flag.Int("ploidy", 2, "Ploidy to use for estimation")
 	procs := flag.Int("procs", 1, "number of processors to use")
 	flag.Parse()
 
@@ -33,7 +34,7 @@ func Run() {
 	results := make(chan sizeInfo, 100)
 	doneChan := make(chan bool, 1)
 
-	go EstimateSize(bampaths, results, *procs)
+	go EstimateSize(bampaths, results, *ploidy, *procs)
 	go writeResults(results, doneChan, os.Stdout)
 
 	var gotInput bool
@@ -67,7 +68,7 @@ func Run() {
 }
 
 // EstimateSize gets the normalized bin sizes of samples possibly concurrently
-func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
+func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, ploidy, procs int) {
 	swg := sizedwaitgroup.New(procs * 4)
 
 	for bampath := range bampaths {
@@ -102,7 +103,7 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
 					start:  rBlock.Start,
 					end:    rBlock.End,
 					rName:  si.RefMap[rBlock.RefID].Name(),
-					size:   math.Log2(normedData.Bins[rBlock]),
+					size:   math.Log2(float64(ploidy) * normedData.Bins[rBlock]),
 				}
 			}
 

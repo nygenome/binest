@@ -19,6 +19,7 @@ import (
 // Run is the command line interface for binest sex
 func Run() {
 	infile := flag.String("infile", "", "path to file with list of bam files")
+	ploidy := flag.Int("ploidy", 2, "Ploidy to use for estimation")
 	procs := flag.Int("procs", 1, "number of processors to use")
 	flag.Parse()
 
@@ -37,7 +38,7 @@ func Run() {
 
 	runtime.GOMAXPROCS(*procs)
 
-	go EstimateSex(bampaths, results, *procs)
+	go EstimateSex(bampaths, results, *ploidy, *procs)
 	go writeResults(results, doneChan, os.Stdout)
 
 	var gotInput bool
@@ -71,7 +72,7 @@ func Run() {
 }
 
 // EstimateSex estimates the sex of the samples from the BAM index
-func EstimateSex(bampaths <-chan string, estimates chan<- sexEstimate, procs int) {
+func EstimateSex(bampaths <-chan string, estimates chan<- sexEstimate, ploidy, procs int) {
 	var swg sizedwaitgroup.SizedWaitGroup
 	if procs == 1 {
 		// To maintain input order use only one goroutine
@@ -107,7 +108,7 @@ func EstimateSex(bampaths <-chan string, estimates chan<- sexEstimate, procs int
 			normedData, err := si.NormalizedBins()
 			binest.CheckError(err)
 
-			estimate := getSexEstimate(normedData, si.RefMap)
+			estimate := getSexEstimate(normedData, si.RefMap, ploidy)
 			estimate.sampleName = si.Name
 			results <- estimate
 
@@ -119,7 +120,7 @@ func EstimateSex(bampaths <-chan string, estimates chan<- sexEstimate, procs int
 }
 
 // getSexEstimate gets the sexEstimate from the normalized bin data
-func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference) sexEstimate {
+func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int) sexEstimate {
 	xSizes := make([]float64, 0, 16384)
 	ySizes := make([]float64, 0, 16384)
 
@@ -145,12 +146,11 @@ func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference) sexEstimate 
 		yCopy     uint32
 	)
 
-	// Assuming ploidy of 2
 	if len(xSizes) > 0 {
-		normXCopy = float64(2) * binest.MedianFloat64(xSizes)
+		normXCopy = float64(ploidy) * binest.MedianFloat64(xSizes)
 	}
 	if len(ySizes) > 0 {
-		normYCopy = float64(2) * binest.MedianFloat64(ySizes)
+		normYCopy = float64(ploidy) * binest.MedianFloat64(ySizes)
 	}
 
 	if normXCopy >= float64(1.7) && normXCopy <= float64(2.3) && normYCopy <= float64(0.3) {
