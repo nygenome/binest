@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/sam"
@@ -118,6 +119,9 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 	estimates := make(map[string]chromEstimate, len(m))
 
 	for idx := range chroms {
+		if strings.HasPrefix(m[idx].Name(), "GL") {
+			continue
+		}
 		chroms[idx] = m[idx].Name()
 	}
 
@@ -133,6 +137,10 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 		}
 
 		chrom = m[refBlock.RefID].Name()
+		if strings.HasPrefix(chrom, "GL") {
+			continue
+		}
+
 		if _, ok := sizes[chrom]; ok {
 			sizes[chrom] = append(sizes[chrom], binSize)
 		} else {
@@ -142,7 +150,7 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 	}
 
 	for chrom, chromSizes := range sizes {
-		if len(chromSizes) > 10 {
+		if len(chromSizes) > 2 {
 			normChromCopy = float64(ploidy) * binest.MedianFloat64(chromSizes)
 		} else {
 			normChromCopy = float64(ploidy) * binest.MeanFloat64(chromSizes)
