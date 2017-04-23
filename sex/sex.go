@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/biogo/hts/bam"
@@ -15,9 +16,6 @@ import (
 
 	"github.com/omicsnut/binest"
 )
-
-// BinestSexVersion is the tagged version of sex subcommand for feature and bug tracking
-const BinestSexVersion = "0.1"
 
 // Run is the command line interface for binest sex
 func Run() {
@@ -130,21 +128,21 @@ func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference) sexEstimate 
 		chromPrefix = "chr"
 	}
 
-	for refBlock, nBin := range d.Bins {
-		if m[refBlock.RefID].Name() == (chromPrefix+"X") && nBin.Size > float64(0) {
-			xSizes = append(xSizes, nBin.Size)
+	for refBlock, binSize := range d.Bins {
+		if m[refBlock.RefID].Name() == (chromPrefix+"X") && binSize > float64(0) {
+			xSizes = append(xSizes, binSize)
 		}
-		if m[refBlock.RefID].Name() == (chromPrefix+"Y") && nBin.Size > float64(0) {
-			ySizes = append(ySizes, nBin.Size)
+		if m[refBlock.RefID].Name() == (chromPrefix+"Y") && binSize > float64(0) {
+			ySizes = append(ySizes, binSize)
 		}
 	}
 
 	var (
-		xMedian float64
-		yMedian float64
-		gender  string
-		xCopy   uint8
-		yCopy   uint8
+		normXCopy float64
+		normYCopy float64
+		gender    string
+		xCopy     uint8
+		yCopy     uint8
 	)
 
 	sort.Slice(xSizes, func(i, j int) bool { return xSizes[i] < xSizes[j] })
@@ -152,38 +150,37 @@ func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference) sexEstimate 
 
 	// Assuming ploidy of 2
 	if len(xSizes) > 0 {
-		xMedian = float64(2) * xSizes[int(float64(len(xSizes))/2)]
+		normXCopy = float64(2) * xSizes[int(float64(len(xSizes))/2)]
 	}
 	if len(ySizes) > 0 {
-		yMedian = float64(2) * ySizes[int(float64(len(ySizes))/2)]
+		normYCopy = float64(2) * ySizes[int(float64(len(ySizes))/2)]
 	}
 
-	if xMedian >= float64(1.7) && xMedian <= float64(2.3) && yMedian <= float64(0.3) {
+	if normXCopy >= float64(1.7) && normXCopy <= float64(2.3) && normYCopy <= float64(0.3) {
 		gender = "female"
 		xCopy = uint8(2)
 		yCopy = uint8(0)
-	} else if xMedian >= float64(0.7) && xMedian <= float64(1.3) && yMedian >= float64(0.7) && yMedian <= float64(1.3) {
+	} else if normXCopy >= float64(0.7) && normXCopy <= float64(1.3) && normYCopy >= float64(0.7) && normYCopy <= float64(1.3) {
 		gender = "male"
 		xCopy = uint8(1)
 		yCopy = uint8(1)
 	} else {
 		gender = "unknown"
-		xCopy = uint8(binest.Round(xMedian, 0.7, 0))
-		yCopy = uint8(binest.Round(yMedian, 0.7, 0))
+		xCopy = uint8(binest.Round(normXCopy, 0.7, 0))
+		yCopy = uint8(binest.Round(normYCopy, 0.7, 0))
 	}
 
 	return sexEstimate{
-		gender:  gender,
-		xCopy:   xCopy,
-		yCopy:   yCopy,
-		xMedian: xMedian,
-		yMedian: yMedian,
+		gender:    gender,
+		xCopy:     xCopy,
+		yCopy:     yCopy,
+		normXCopy: normXCopy,
+		normYCopy: normYCopy,
 	}
 }
 
 func writeResults(results <-chan sexEstimate, fin chan<- bool, outStream io.Writer) {
-	fmt.Fprintf(os.Stderr, "#binest sex version %s\n", BinestSexVersion)
-	fmt.Println("#SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORMALIZED_XMEAN\tNORMALIZED_YMEAN")
+	fmt.Println("SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tESTIMATED_XCOPIES\tESTIMATED_YCOPIES")
 	for result := range results {
 		fmt.Fprintln(outStream, result)
 	}
@@ -192,27 +189,29 @@ func writeResults(results <-chan sexEstimate, fin chan<- bool, outStream io.Writ
 
 // sexEstimate holds the result of the sex estimate of the sample
 type sexEstimate struct {
-	sampleName string
 	gender     string
 	xCopy      uint8
 	yCopy      uint8
-	xMedian    float64
-	yMedian    float64
+	sampleName string
+	normXCopy  float64
+	normYCopy  float64
 }
 
 // String implements the Stringer interface for sexEstimate
 func (s sexEstimate) String() string {
-	var out string
+	var sexGenotype string
 	for i := 0; i < int(s.xCopy); i++ {
-		out += "X"
+		sexGenotype += "X"
 	}
 	for i := 0; i < int(s.yCopy); i++ {
-		out += "Y"
+		sexGenotype += "Y"
 	}
-	if s.gender == "unknown" && len(out) == 1 {
-		out += "O"
+	if s.gender == "unknown" && len(sexGenotype) == 1 {
+		sexGenotype += "O"
 	}
 
-	return fmt.Sprintf("%s\t%s\t%s\t%.10f\t%.10f",
-		s.sampleName, s.gender, out, s.xMedian, s.yMedian)
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
+		s.sampleName, s.gender, sexGenotype,
+		strconv.FormatFloat(s.normXCopy, 'f', -1, 64),
+		strconv.FormatFloat(s.normYCopy, 'f', -1, 64))
 }
