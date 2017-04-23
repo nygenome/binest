@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 
@@ -100,7 +101,7 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
 					start:  rBlock.Start,
 					end:    rBlock.End,
 					rName:  si.RefMap[rBlock.RefID].Name(),
-					size:   normedData.Bins[rBlock].Size,
+					size:   math.Log2(normedData.Bins[rBlock]),
 				}
 			}
 
@@ -113,6 +114,7 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
 
 // writeResults writes to io.Writer after combining data from all samples
 func writeResults(results <-chan sizeInfo, fin chan<- bool, outStream io.Writer) {
+	fmt.Println("SAMPLE\tCHROM\tSTART\tEND\tLOG2_NORMALIZED_SIZE")
 	for result := range results {
 		fmt.Fprintln(outStream, result)
 	}
