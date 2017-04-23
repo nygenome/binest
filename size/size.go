@@ -134,7 +134,7 @@ type sizeInfo struct {
 
 // String implements the Stringer interface for sizeInfo
 func (s sizeInfo) String() string {
-	return fmt.Sprintf("%s\t%d\t%d\t%s\t%s",
-		s.rName, s.start, s.end, s.sample,
+	return fmt.Sprintf("%s\t%s\t%d\t%d\t%s",
+		s.sample, s.rName, s.start, s.end,
 		strconv.FormatFloat(s.size, 'f', -1, 64))
 }
