@@ -203,13 +203,13 @@ type chromEstimate struct {
 
 // String implements the Stringer interface for copyEstimate
 func (c copyEstimate) String() string {
-	var result string
+	results := make([]string, len(c.chroms))
 
-	for _, chrom := range c.chroms {
-		result += fmt.Sprintf("%s\t%s\t%d\t%s\n",
+	for idx, chrom := range c.chroms {
+		results[idx] = fmt.Sprintf("%s\t%s\t%d\t%s",
 			c.sampleName, chrom, c.estimates[chrom].estCopy,
 			strconv.FormatFloat(c.estimates[chrom].normCopy, 'f', -1, 64))
 	}
 
-	return result
+	return strings.Join(results, "\n")
 }
