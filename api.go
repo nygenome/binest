@@ -63,28 +63,16 @@ func (r *RefBlock) Overlap(b interval.IntRange) bool {
 	return r.End > b.Start && r.Start < b.End
 }
 
-// rawBin holds the raw size and location of a single bin
-type rawBin struct {
-	Size  int64
-	Chunk bgzf.Chunk
-}
-
-// NormBin has the normalized size and location of a single bin
-type NormBin struct {
-	Size  float64
-	Chunk bgzf.Chunk
-}
-
 // RawBinData represents the raw bin data of a sample
 type RawBinData struct {
-	Bins   map[RefBlock]rawBin
 	Blocks []RefBlock
+	Bins   map[RefBlock]int64
 }
 
 // NormBinData represents the normalized bin data of a sample
 type NormBinData struct {
-	Bins   map[RefBlock]NormBin
 	Blocks []RefBlock
+	Bins   map[RefBlock]float64
 }
 
 // SampleIndex holds relevant information to operate in BAM index bins.
@@ -95,33 +83,29 @@ type SampleIndex struct {
 }
 
 // bins returns the bin size and BGZF chunks for each chunk from the bam index
-func (s *SampleIndex) bins() ([][]rawBin, error) {
+func (s *SampleIndex) bins() ([][]int64, error) {
 	idxRefs := reflect.ValueOf(*s.Index).FieldByName("idx").FieldByName("Refs")
 	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
 	refIdxs := (*(*[1 << 32]refIndex)(idxRefsPtr))[:idxRefs.Len()]
 
 	var (
 		binSize       int64
-		binChunk      bgzf.Chunk
 		intervalBegin bgzf.Offset
 	)
 
-	bins := make([][]rawBin, len(refIdxs))
+	bins := make([][]int64, len(refIdxs))
 
 	for refNum, rIdx := range refIdxs {
 		// Ignore chromosomes too small to hold a chunk
 		if len(rIdx.intervals) < 2 {
-			bins[refNum] = make([]rawBin, 0)
+			bins[refNum] = make([]int64, 0)
 			continue
 		}
 
-		bins[refNum] = make([]rawBin, len(rIdx.intervals)-1)
+		bins[refNum] = make([]int64, len(rIdx.intervals)-1)
 		for chunkNum, intervalEnd := range rIdx.intervals[1:] {
 			intervalBegin = rIdx.intervals[chunkNum]
-			binSize = VOffset(intervalEnd) - VOffset(intervalBegin)
-			binChunk = bgzf.Chunk{Begin: intervalBegin, End: intervalEnd}
-
-			bins[refNum][chunkNum] = rawBin{Size: binSize, Chunk: binChunk}
+			bins[refNum][chunkNum] = VOffset(intervalEnd) - VOffset(intervalBegin)
 
 			if binSize < 0 {
 				panic(ErrNegativeVirtualOffset)
@@ -141,7 +125,7 @@ func (s *SampleIndex) RawBins() (RawBinData, error) {
 		return RawBinData{}, err
 	}
 
-	rawBins := make(map[RefBlock]rawBin)
+	rawBins := make(map[RefBlock]int64)
 	refBlocks := make([]RefBlock, 0, 65536)
 
 	var (
@@ -152,9 +136,9 @@ func (s *SampleIndex) RawBins() (RawBinData, error) {
 	for _, ref := range s.RefMap {
 		pos = 0
 		binsForRef := bins[ref.ID()]
-		for _, b := range binsForRef {
+		for _, binSize := range binsForRef {
 			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384}
-			rawBins[rBlock] = rawBin{Size: b.Size, Chunk: b.Chunk}
+			rawBins[rBlock] = binSize
 			pos += 16384
 			refBlocks = append(refBlocks, rBlock)
 		}
@@ -174,7 +158,7 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 
 	for i := 0; i < len(bins); i++ {
 		for j := 0; j < len(bins[i]); j++ {
-			mergedBinSizes = append(mergedBinSizes, bins[i][j].Size)
+			mergedBinSizes = append(mergedBinSizes, bins[i][j])
 		}
 	}
 
@@ -188,20 +172,18 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 
 	var (
 		pos    int
-		normed float64
 		rBlock RefBlock
 	)
 
-	normedBins := make(map[RefBlock]NormBin)
+	normedBins := make(map[RefBlock]float64)
 	refBlocks := make([]RefBlock, 0, 65536)
 
 	for _, ref := range s.RefMap {
 		pos = 0
 		binsForRef := bins[ref.ID()]
-		for _, b := range binsForRef {
+		for _, binSize := range binsForRef {
 			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384}
-			normed = float64(b.Size) / medianBinSize
-			normedBins[rBlock] = NormBin{Size: normed, Chunk: b.Chunk}
+			normedBins[rBlock] = float64(binSize) / medianBinSize
 			pos += 16384
 			refBlocks = append(refBlocks, rBlock)
 		}
