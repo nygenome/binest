@@ -115,16 +115,18 @@ func EstimateCopy(bampaths <-chan string, estimates chan<- copyEstimate, ploidy 
 // getCopyEstimate gets the per sample copy estimate from normalized bin data
 func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int) copyEstimate {
 	chroms := make([]string, 0, len(m))
-
+	addedChroms := make(map[string]bool, len(m))
 	var (
 		chrom         string
 		normChromCopy float64
-		estChromCopy  uint8
+		estChromCopy  uint32
 	)
 
-	for idx := range m {
-		chrom = m[idx].Name()
-		if strings.HasPrefix(chrom, "GL") ||
+	for _, block := range d.Blocks {
+		chrom = m[block.RefID].Name()
+		_, found := addedChroms[chrom]
+		if found ||
+			strings.HasPrefix(chrom, "GL") ||
 			strings.HasPrefix(chrom, "HLA") ||
 			strings.HasSuffix(chrom, "random") ||
 			strings.HasSuffix(chrom, "decoy") ||
@@ -132,6 +134,7 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 			strings.HasSuffix(chrom, "alt") {
 			continue
 		}
+		addedChroms[chrom] = true
 		chroms = append(chroms, chrom)
 	}
 
@@ -164,11 +167,11 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 	for chrom, chromSizes := range sizes {
 		if len(chromSizes) > 2 {
 			normChromCopy = float64(ploidy) * binest.MedianFloat64(chromSizes)
-			estChromCopy = uint8(binest.Round(normChromCopy, 0.7, 0))
+			estChromCopy = uint32(binest.Round(normChromCopy, 0.7, 0))
 			estimates[chrom] = chromEstimate{normCopy: normChromCopy, estCopy: estChromCopy}
 		} else if len(chromSizes) == 1 {
 			normChromCopy = float64(ploidy) * chromSizes[0]
-			estChromCopy = uint8(binest.Round(normChromCopy, 0.7, 0))
+			estChromCopy = uint32(binest.Round(normChromCopy, 0.7, 0))
 			estimates[chrom] = chromEstimate{normCopy: normChromCopy, estCopy: estChromCopy}
 		} else {
 			estimates[chrom] = chromEstimate{}
@@ -197,7 +200,7 @@ type copyEstimate struct {
 // chromEstimate holds the copy number estimate of one chromosome
 type chromEstimate struct {
 	normCopy float64
-	estCopy  uint8
+	estCopy  uint32
 }
 
 // String implements the Stringer interface for copyEstimate
