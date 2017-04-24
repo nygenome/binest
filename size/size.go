@@ -114,7 +114,7 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
 
 // writeResults writes to io.Writer after combining data from all samples
 func writeResults(results <-chan sizeInfo, fin chan<- bool, outStream io.Writer) {
-	fmt.Println("SAMPLE\tCHROM\tSTART\tEND\tLOG2_NORMALIZED_SIZE")
+	fmt.Println("SAMPLE\tCHROM\tSTART\tEND\tNORMALIZED_SIZE")
 	for result := range results {
 		fmt.Fprintln(outStream, result)
 	}
