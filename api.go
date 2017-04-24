@@ -66,13 +66,13 @@ func (r *RefBlock) Overlap(b interval.IntRange) bool {
 // RawBinData represents the raw bin data of a sample
 type RawBinData struct {
 	Blocks []RefBlock
-	Bins   map[RefBlock]int64
+	Sizes  []int64
 }
 
 // NormBinData represents the normalized bin data of a sample
 type NormBinData struct {
 	Blocks []RefBlock
-	Bins   map[RefBlock]float64
+	Sizes  []float64
 }
 
 // SampleIndex holds relevant information to operate in BAM index bins.
@@ -125,26 +125,21 @@ func (s *SampleIndex) RawBins() (RawBinData, error) {
 		return RawBinData{}, err
 	}
 
-	rawBins := make(map[RefBlock]int64)
+	var pos int
 	refBlocks := make([]RefBlock, 0, 65536)
-
-	var (
-		pos    int
-		rBlock RefBlock
-	)
+	binSizes := make([]int64, 0, 65536)
 
 	for _, ref := range s.RefMap {
 		pos = 0
 		binsForRef := bins[ref.ID()]
 		for _, binSize := range binsForRef {
-			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384}
-			rawBins[rBlock] = binSize
+			refBlocks = append(refBlocks, RefBlock{ref.ID(), pos, pos + 16384})
+			binSizes = append(binSizes, binSize)
 			pos += 16384
-			refBlocks = append(refBlocks, rBlock)
 		}
 	}
 
-	return RawBinData{Bins: rawBins, Blocks: refBlocks}, nil
+	return RawBinData{Blocks: refBlocks, Sizes: binSizes}, nil
 }
 
 // NormalizedBins returns the normalized BinData for the sample
@@ -170,26 +165,20 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 
 	medianBinSize := MedianInt64(mergedBinSizes)
 
-	var (
-		pos    int
-		rBlock RefBlock
-	)
-
-	normedBins := make(map[RefBlock]float64)
+	var pos int
 	refBlocks := make([]RefBlock, 0, 65536)
+	binSizes := make([]float64, 0, 65536)
 
 	for _, ref := range s.RefMap {
 		pos = 0
-		binsForRef := bins[ref.ID()]
-		for _, binSize := range binsForRef {
-			rBlock = RefBlock{RefID: ref.ID(), Start: pos, End: pos + 16384}
-			normedBins[rBlock] = float64(binSize) / medianBinSize
+		for _, binSize := range bins[ref.ID()] {
+			refBlocks = append(refBlocks, RefBlock{ref.ID(), pos, pos + 16384})
+			binSizes = append(binSizes, float64(binSize)/medianBinSize)
 			pos += 16384
-			refBlocks = append(refBlocks, rBlock)
 		}
 	}
 
-	return NormBinData{Bins: normedBins, Blocks: refBlocks}, nil
+	return NormBinData{Blocks: refBlocks, Sizes: binSizes}, nil
 }
 
 // Stats returns the number of mapped reads and total number of bases in the genome

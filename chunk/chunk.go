@@ -112,13 +112,15 @@ func mergeBins(bins <-chan binest.RawBinData, chunks chan<- chunkInfo, numChunks
 	var totalSize int64
 	binSizes := make(map[binest.RefBlock]int64)
 
+	var size int64
 	for binData := range bins {
-		for block, size := range binData.Bins {
+		for blockIdx, refBlock := range binData.Blocks {
+			size = binData.Sizes[blockIdx]
 			totalSize += size
-			if _, ok := binSizes[block]; ok {
-				binSizes[block] += size
+			if _, ok := binSizes[refBlock]; ok {
+				binSizes[refBlock] += size
 			} else {
-				binSizes[block] = size
+				binSizes[refBlock] = size
 			}
 		}
 	}

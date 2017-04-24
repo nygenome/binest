@@ -95,13 +95,13 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
 			normedData, err := si.NormalizedBins()
 			binest.CheckError(err)
 
-			for _, rBlock := range normedData.Blocks {
+			for blockIdx, rBlock := range normedData.Blocks {
 				results <- sizeInfo{
 					sample: si.Name,
 					start:  rBlock.Start,
 					end:    rBlock.End,
 					rName:  si.RefMap[rBlock.RefID].Name(),
-					size:   normedData.Bins[rBlock] - 1,
+					size:   normedData.Sizes[blockIdx] - 1,
 				}
 			}
 

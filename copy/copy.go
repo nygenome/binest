@@ -139,7 +139,9 @@ func getCopyEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int)
 	sizes := make(map[string][]float64, len(chroms))
 	estimates := make(map[string]chromEstimate, len(chroms))
 
-	for refBlock, binSize := range d.Bins {
+	var binSize float64
+	for blockIdx, refBlock := range d.Blocks {
+		binSize = d.Sizes[blockIdx]
 		if binSize <= float64(0) {
 			continue
 		}

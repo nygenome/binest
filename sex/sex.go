@@ -129,7 +129,9 @@ func getSexEstimate(d binest.NormBinData, m map[int]*sam.Reference, ploidy int) 
 		chromPrefix = "chr"
 	}
 
-	for refBlock, binSize := range d.Bins {
+	var binSize float64
+	for blockIdx, refBlock := range d.Blocks {
+		binSize = d.Sizes[blockIdx]
 		if m[refBlock.RefID].Name() == (chromPrefix+"X") && binSize > float64(0) {
 			xSizes = append(xSizes, binSize)
 		}
