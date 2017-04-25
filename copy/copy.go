@@ -71,7 +71,7 @@ func Run() {
 
 // EstimateCopy estimates the per chrom copy number
 func EstimateCopy(bampaths <-chan string, estimates chan<- copyEstimate, ploidy, procs int) {
-	swg := sizedwaitgroup.New(procs * 4)
+	swg := sizedwaitgroup.New(procs)
 
 	for bampath := range bampaths {
 

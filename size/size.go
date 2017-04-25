@@ -67,7 +67,7 @@ func Run() {
 
 // EstimateSize gets the normalized bin sizes of samples possibly concurrently
 func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
-	swg := sizedwaitgroup.New(procs * 4)
+	swg := sizedwaitgroup.New(procs)
 
 	for bampath := range bampaths {
 		swg.Add()

@@ -73,14 +73,7 @@ func Run() {
 
 // EstimateSex estimates the sex of the samples from the BAM index
 func EstimateSex(bampaths <-chan string, estimates chan<- sexEstimate, ploidy, procs int) {
-	var swg sizedwaitgroup.SizedWaitGroup
-	if procs == 1 {
-		// To maintain input order use only one goroutine
-		// equivalent to calling func without `go`
-		swg = sizedwaitgroup.New(1)
-	} else {
-		swg = sizedwaitgroup.New(procs * 4)
-	}
+	swg := sizedwaitgroup.New(procs)
 
 	for bampath := range bampaths {
 		swg.Add()
