@@ -30,7 +30,7 @@ func Run() {
 	}
 
 	bampaths := make(chan string, 100)
-	results := make(chan sizeInfo, 200000)
+	results := make(chan []sizeInfo, 100)
 	doneChan := make(chan bool, 1)
 
 	go EstimateSize(bampaths, results, *rawSize, *procs)
@@ -67,13 +67,13 @@ func Run() {
 }
 
 // EstimateSize gets the normalized bin sizes of samples possibly concurrently
-func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, rawSize bool, procs int) {
+func EstimateSize(bampaths <-chan string, sizes chan<- []sizeInfo, rawSize bool, procs int) {
 	swg := sizedwaitgroup.New(procs)
 
 	for bampath := range bampaths {
 		swg.Add()
 
-		go func(b string, results chan<- sizeInfo) {
+		go func(b string, results chan<- []sizeInfo) {
 			defer swg.Done()
 
 			bamFh, err := os.Open(b)
@@ -93,12 +93,15 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, rawSize bool, p
 			si, err := binest.NewSampleIndex(bamIdx, bamRdr.Header())
 			binest.CheckError(err)
 
+			var data []sizeInfo
+
 			if rawSize {
 				rawData, err := si.RawBins()
 				binest.CheckError(err)
+				data = make([]sizeInfo, len(rawData.Blocks))
 
 				for blockIdx, rBlock := range rawData.Blocks {
-					results <- sizeInfo{
+					data[blockIdx] = sizeInfo{
 						sample: si.Name,
 						start:  rBlock.Start,
 						end:    rBlock.End,
@@ -109,9 +112,10 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, rawSize bool, p
 			} else {
 				normData, err := si.NormalizedBins()
 				binest.CheckError(err)
+				data = make([]sizeInfo, len(normData.Blocks))
 
 				for blockIdx, rBlock := range normData.Blocks {
-					results <- sizeInfo{
+					data[blockIdx] = sizeInfo{
 						sample: si.Name,
 						start:  rBlock.Start,
 						end:    rBlock.End,
@@ -121,6 +125,8 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, rawSize bool, p
 				}
 			}
 
+			results <- data
+
 		}(bampath, sizes)
 	}
 
@@ -129,14 +135,18 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, rawSize bool, p
 }
 
 // writeResults writes to io.Writer after combining data from all samples
-func writeResults(results <-chan sizeInfo, fin chan<- bool, outStream io.Writer, rawSize bool) {
+func writeResults(results <-chan []sizeInfo, fin chan<- bool, outStream io.Writer, rawSize bool) {
+	// Write header
 	if rawSize {
-		fmt.Println("SAMPLE\tCHROM\tSTART\tEND\tRAW_SIZE")
+		fmt.Println("CHROM\tSTART\tEND\tSAMPLE\tRAW_SIZE")
 	} else {
-		fmt.Println("SAMPLE\tCHROM\tSTART\tEND\tNORMALIZED_SIZE")
+		fmt.Println("CHROM\tSTART\tEND\tSAMPLE\tNORMALIZED_SIZE")
 	}
+
 	for result := range results {
-		fmt.Fprintln(outStream, result)
+		for item := range result {
+			fmt.Println(outStream, item)
+		}
 	}
 
 	fin <- true
@@ -153,7 +163,7 @@ type sizeInfo struct {
 
 // String implements the Stringer interface for sizeInfo
 func (s sizeInfo) String() string {
-	return fmt.Sprintf("%s\t%s\t%d\t%d\t%s",
-		s.sample, s.rName, s.start, s.end,
+	return fmt.Sprintf("%s\t%d\t%d\t%s\t%s",
+		s.rName, s.start, s.end, s.sample,
 		strconv.FormatFloat(s.size, 'f', -1, 64))
 }
