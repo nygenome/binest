@@ -16,6 +16,7 @@ import (
 // Run is the command line interface for binest size
 func Run() {
 	infile := flag.String("infile", "", "path to file with list of bam files")
+	rawSize := flag.Bool("raw", false, "output raw bin sizes without normalization")
 	procs := flag.Int("procs", 1, "number of processors to use")
 	flag.Parse()
 
@@ -32,7 +33,7 @@ func Run() {
 	results := make(chan sizeInfo, 200000)
 	doneChan := make(chan bool, 1)
 
-	go EstimateSize(bampaths, results, *procs)
+	go EstimateSize(bampaths, results, *rawSize, *procs)
 	go writeResults(results, doneChan, os.Stdout)
 
 	var gotInput bool
@@ -66,7 +67,7 @@ func Run() {
 }
 
 // EstimateSize gets the normalized bin sizes of samples possibly concurrently
-func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
+func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, rawSize bool, procs int) {
 	swg := sizedwaitgroup.New(procs)
 
 	for bampath := range bampaths {
@@ -92,16 +93,31 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, procs int) {
 			si, err := binest.NewSampleIndex(bamIdx, bamRdr.Header())
 			binest.CheckError(err)
 
-			normedData, err := si.NormalizedBins()
-			binest.CheckError(err)
+			if rawSize {
+				rawData, err := si.RawBins()
+				binest.CheckError(err)
 
-			for blockIdx, rBlock := range normedData.Blocks {
-				results <- sizeInfo{
-					sample: si.Name,
-					start:  rBlock.Start,
-					end:    rBlock.End,
-					rName:  si.RefMap[rBlock.RefID].Name(),
-					size:   normedData.Sizes[blockIdx] - 1,
+				for blockIdx, rBlock := range rawData.Blocks {
+					results <- sizeInfo{
+						sample: si.Name,
+						start:  rBlock.Start,
+						end:    rBlock.End,
+						rName:  si.RefMap[rBlock.RefID].Name(),
+						size:   float64(rawData.Sizes[blockIdx]),
+					}
+				}
+			} else {
+				normData, err := si.NormalizedBins()
+				binest.CheckError(err)
+
+				for blockIdx, rBlock := range normData.Blocks {
+					results <- sizeInfo{
+						sample: si.Name,
+						start:  rBlock.Start,
+						end:    rBlock.End,
+						rName:  si.RefMap[rBlock.RefID].Name(),
+						size:   normData.Sizes[blockIdx],
+					}
 				}
 			}
 
