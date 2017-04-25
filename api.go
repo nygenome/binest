@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"unsafe"
 
 	"github.com/biogo/hts/bam"
@@ -177,6 +178,26 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 			pos += 16384
 		}
 	}
+
+	// sort binsizes by the refblock indexes
+	sort.Slice(binSizes, func(i, j int) bool {
+		switch refBlocks[i].RefID - refBlocks[j].RefID {
+		case 0:
+			return refBlocks[i].Start < refBlocks[j].Start
+		default:
+			return refBlocks[i].RefID < refBlocks[j].RefID
+		}
+	})
+
+	// sort refBlocks by it's original indexes to match binsizes
+	sort.Slice(refBlocks, func(i, j int) bool {
+		switch refBlocks[i].RefID - refBlocks[j].RefID {
+		case 0:
+			return refBlocks[i].Start < refBlocks[j].Start
+		default:
+			return refBlocks[i].RefID < refBlocks[j].RefID
+		}
+	})
 
 	return NormBinData{Blocks: refBlocks, Sizes: binSizes}, nil
 }
