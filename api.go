@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sort"
 	"unsafe"
 
 	"github.com/biogo/hts/bam"
@@ -87,7 +86,7 @@ type SampleIndex struct {
 func (s *SampleIndex) bins() ([][]int64, error) {
 	idxRefs := reflect.ValueOf(*s.Index).FieldByName("idx").FieldByName("Refs")
 	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
-	refIdxs := (*(*[1 << 32]refIndex)(idxRefsPtr))[:idxRefs.Len()]
+	refIdxs := (*(*[1 << 29]refIndex)(idxRefsPtr))[:idxRefs.Len()]
 
 	var (
 		binSize       int64
@@ -127,14 +126,13 @@ func (s *SampleIndex) RawBins() (RawBinData, error) {
 	}
 
 	var pos int
-	refBlocks := make([]RefBlock, 0, 65536)
-	binSizes := make([]int64, 0, 65536)
+	refBlocks := make([]RefBlock, 0, 200000)
+	binSizes := make([]int64, 0, 200000)
 
-	for _, ref := range s.RefMap {
+	for refID, refBins := range bins {
 		pos = 0
-		binsForRef := bins[ref.ID()]
-		for _, binSize := range binsForRef {
-			refBlocks = append(refBlocks, RefBlock{ref.ID(), pos, pos + 16384})
+		for _, binSize := range refBins {
+			refBlocks = append(refBlocks, RefBlock{refID, pos, pos + 16384})
 			binSizes = append(binSizes, binSize)
 			pos += 16384
 		}
@@ -150,7 +148,7 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 		return NormBinData{}, err
 	}
 
-	mergedBinSizes := make([]int64, 0, 65536)
+	mergedBinSizes := make([]int64, 0, 200000)
 
 	for i := 0; i < len(bins); i++ {
 		for j := 0; j < len(bins[i]); j++ {
@@ -158,46 +156,25 @@ func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
 		}
 	}
 
-	// fmt.Fprintf(os.Stderr, "Found %d bins in the BAM index for %s\n",
-	// 	len(mergedBinSizes), s.Name)
-	if len(mergedBinSizes) < 1024 {
+	if len(mergedBinSizes) < 4096 {
+		fmt.Fprintf(os.Stderr, "Found only %d bins in the BAM index for %s\n", len(mergedBinSizes), s.Name)
 		return NormBinData{}, ErrNotEnoughBins
 	}
 
 	medianBinSize := MedianInt64(mergedBinSizes)
 
 	var pos int
-	refBlocks := make([]RefBlock, 0, 65536)
-	binSizes := make([]float64, 0, 65536)
+	refBlocks := make([]RefBlock, 0, 200000)
+	binSizes := make([]float64, 0, 200000)
 
-	for _, ref := range s.RefMap {
+	for refID, refBins := range bins {
 		pos = 0
-		for _, binSize := range bins[ref.ID()] {
-			refBlocks = append(refBlocks, RefBlock{ref.ID(), pos, pos + 16384})
+		for _, binSize := range refBins {
+			refBlocks = append(refBlocks, RefBlock{refID, pos, pos + 16384})
 			binSizes = append(binSizes, float64(binSize)/medianBinSize)
 			pos += 16384
 		}
 	}
-
-	// sort binsizes by the refblock indexes
-	sort.Slice(binSizes, func(i, j int) bool {
-		switch refBlocks[i].RefID - refBlocks[j].RefID {
-		case 0:
-			return refBlocks[i].Start < refBlocks[j].Start
-		default:
-			return refBlocks[i].RefID < refBlocks[j].RefID
-		}
-	})
-
-	// sort refBlocks by it's original indexes to match binsizes
-	sort.Slice(refBlocks, func(i, j int) bool {
-		switch refBlocks[i].RefID - refBlocks[j].RefID {
-		case 0:
-			return refBlocks[i].Start < refBlocks[j].Start
-		default:
-			return refBlocks[i].RefID < refBlocks[j].RefID
-		}
-	})
 
 	return NormBinData{Blocks: refBlocks, Sizes: binSizes}, nil
 }
