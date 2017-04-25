@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/omicsnut/binest"
-	"github.com/omicsnut/binest/chunk"
 	"github.com/omicsnut/binest/copy"
 	"github.com/omicsnut/binest/sex"
 	"github.com/omicsnut/binest/size"
@@ -14,7 +13,7 @@ import (
 
 func main() {
 	var mode string
-	cmds := []string{"chunk", "copy", "size", "sex"}
+	cmds := []string{"copy", "size", "sex"}
 
 	if len(os.Args) <= 1 {
 		fmt.Fprintf(os.Stderr, "binest %s Available subcommands: %s\n", binest.Version, strings.Join(cmds, ", "))
@@ -26,8 +25,6 @@ func main() {
 	}
 
 	switch mode {
-	case "chunk":
-		chunk.Run()
 	case "copy":
 		copy.Run()
 	case "size":

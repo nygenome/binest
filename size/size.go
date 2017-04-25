@@ -29,7 +29,7 @@ func Run() {
 	}
 
 	bampaths := make(chan string, 100)
-	results := make(chan sizeInfo, 100)
+	results := make(chan sizeInfo, 200000)
 	doneChan := make(chan bool, 1)
 
 	go EstimateSize(bampaths, results, *procs)
