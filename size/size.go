@@ -34,7 +34,7 @@ func Run() {
 	doneChan := make(chan bool, 1)
 
 	go EstimateSize(bampaths, results, *rawSize, *procs)
-	go writeResults(results, doneChan, os.Stdout)
+	go writeResults(results, doneChan, os.Stdout, *rawSize)
 
 	var gotInput bool
 
@@ -129,8 +129,12 @@ func EstimateSize(bampaths <-chan string, sizes chan<- sizeInfo, rawSize bool, p
 }
 
 // writeResults writes to io.Writer after combining data from all samples
-func writeResults(results <-chan sizeInfo, fin chan<- bool, outStream io.Writer) {
-	fmt.Println("SAMPLE\tCHROM\tSTART\tEND\tNORMALIZED_SIZE")
+func writeResults(results <-chan sizeInfo, fin chan<- bool, outStream io.Writer, rawSize bool) {
+	if rawSize {
+		fmt.Println("SAMPLE\tCHROM\tSTART\tEND\tRAW_SIZE")
+	} else {
+		fmt.Println("SAMPLE\tCHROM\tSTART\tEND\tNORMALIZED_SIZE")
+	}
 	for result := range results {
 		fmt.Fprintln(outStream, result)
 	}
