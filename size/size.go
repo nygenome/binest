@@ -144,7 +144,7 @@ func writeResults(results <-chan []sizeInfo, fin chan<- bool, outStream io.Write
 	}
 
 	for result := range results {
-		for item := range result {
+		for _, item := range result {
 			fmt.Println(outStream, item)
 		}
 	}
