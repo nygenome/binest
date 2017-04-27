@@ -1,5 +1,5 @@
-hash: be2a13a4667d55a69cc5360a305e5764fef444de1437a5a3f5d3daf8b11bf869
-updated: 2017-04-26T21:51:32.750909919-04:00
+hash: 0f0219e48bee9a6cd207061126324820a981cdb4141d4e65db85b87ebedd6c1c
+updated: 2017-04-27T14:11:44.509754349-04:00
 imports:
 - name: github.com/biogo/biogo
   version: 0f3e6a0d86d287fc9b1fdcbce89d730264f50024
@@ -16,4 +16,6 @@ imports:
   - tabix
 - name: github.com/pkg/errors
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: gopkg.in/alecthomas/kingpin.v2
+  version: 7f0871f2e17818990e4eed73f9b5c2f429501228
 testImports: []

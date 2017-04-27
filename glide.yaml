@@ -12,3 +12,5 @@ import:
   - tabix
 - package: github.com/pkg/errors
   version: ^0.8.0
+- package: gopkg.in/alecthomas/kingpin.v2
+  version: ^2.2.4

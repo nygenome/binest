@@ -1,4 +1,4 @@
 package main
 
 // runCopy is the command line interface for binest copy
-func runCopy() {}
+func runCopy(idxPaths []string, faiPath string, ploidy, procs uint) {}
