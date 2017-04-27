@@ -1,13 +1,13 @@
 package: github.com/omicsnut/binest
 import:
+- package: github.com/biogo/biogo
+  version: ^1.0.1
+  subpackages:
+  - io/seqio/fai
 - package: github.com/biogo/hts
   version: ^1.0.1
   subpackages:
   - bam
   - bgzf
-  - sam
-- package: github.com/biogo/store
-  subpackages:
-  - interval
-- package: github.com/brentp/xopen
-- package: github.com/remeh/sizedwaitgroup
+  - tabix
+- package: github.com/palantir/stacktrace

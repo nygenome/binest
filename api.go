@@ -3,218 +3,164 @@ package binest
 import (
 	"errors"
 	"fmt"
-	"os"
-	"reflect"
-	"unsafe"
+	"strconv"
 
-	"github.com/biogo/hts/bam"
-	"github.com/biogo/hts/bgzf"
-	"github.com/biogo/hts/sam"
-	"github.com/biogo/store/interval"
+	"github.com/omicsnut/binest/internal"
+	"github.com/palantir/stacktrace"
 )
 
-// Common errors which will be raised in the package.
-var (
-	ErrTooManySamples        = errors.New("binest: Too many samples in RG header")
-	ErrNoChunksToUse         = errors.New("binest: No usable chunks for estimates")
-	ErrNotEnoughBins         = errors.New("binest: Not enough bins availabe to use")
-	ErrNegativeVirtualOffset = errors.New("binest: Non positive change in vOffset")
-)
-
-// refIndex is the index of a single reference.
-type refIndex struct {
-	bins      []bin
-	stats     *referenceStats
-	intervals []bgzf.Offset
+// BinData holds the binSizes, RefMap and Name of one sample
+type BinData struct {
+	Name     string
+	IdxType  IndexType
+	binSizes [][]int64
+	refMap   map[uint32]string
 }
 
-// bin represents a BAM index bin.
-type bin struct {
-	bin    uint32
-	chunks []bgzf.Chunk
+// Bin holds the size and refblock for a reference bin
+type Bin struct {
+	Ref   string
+	Start uint32
+	End   uint32
+	Size  float64
 }
 
-// referenceStats holds mapping statistics available in the BAM index.
-type referenceStats struct {
-	chunk    bgzf.Chunk
-	mapped   uint64
-	unmapped uint64
+// RefCopy holds the copy number estimate of a reference
+type RefCopy struct {
+	Ref  string
+	Est  uint32
+	Norm float64
 }
 
-// RefBlock is a chunk in the genome implementing biogo's IntInterface
-type RefBlock struct {
-	RefID int
-	Start int
-	End   int
+// Raw returns the raw bins for the sample
+func (bd *BinData) Raw() []Bin {
+	bins := make([]Bin, 0, 200000)
+
+	var position uint32
+	for refID, refBins := range bd.binSizes {
+		position = 0
+		for _, binSize := range refBins {
+			bins = append(bins, Bin{
+				Ref:   bd.refMap[uint32(refID)],
+				Start: position,
+				End:   position + internal.TileWidth,
+				Size:  float64(binSize),
+			})
+			position += internal.TileWidth
+		}
+	}
+
+	return bins
 }
 
-// ID returns the unique ID for the RefBlock
-func (r *RefBlock) ID() uintptr {
-	return uintptr(r.RefID)
+// medianBinSize returns the median size of all bins in the sample
+func (bd *BinData) medianBinSize() float64 {
+	tmpMerged := make([]int64, 0, 200000)
+
+	for i := 0; i < len(bd.binSizes); i++ {
+		tmpMerged = append(tmpMerged, bd.binSizes[i]...)
+	}
+
+	return medianI64(tmpMerged)
 }
 
-// Range gives the range of the current RefBlock
-func (r *RefBlock) Range() interval.IntRange {
-	return interval.IntRange{Start: r.Start, End: r.End}
+// Normalized returns the normalized bins for the sample
+func (bd *BinData) Normalized() []Bin {
+	bins := make([]Bin, 0, 200000)
+	medianSize := bd.medianBinSize()
+
+	var position uint32
+	for refID, refBins := range bd.binSizes {
+		position = 0
+		for _, binSize := range refBins {
+			bins = append(bins, Bin{
+				Ref:   bd.refMap[uint32(refID)],
+				Start: position,
+				End:   position + internal.TileWidth,
+				Size:  float64(binSize) / medianSize,
+			})
+			position += internal.TileWidth
+		}
+	}
+
+	return bins
 }
 
-// Overlap returns a boolean indicating whether the receiver overlaps a range
-func (r *RefBlock) Overlap(b interval.IntRange) bool {
-	return r.End > b.Start && r.Start < b.End
-}
+// Copies returns the copy number estimates for all references in the sample
+func (bd *BinData) Copies(ploidy int) ([]RefCopy, error) {
+	if bd.IdxType != BAI {
+		msg := "can't estimate copy number from TABIX index"
+		return nil, stacktrace.Propagate(errors.New(msg), "")
+	}
 
-// RawBinData represents the raw bin data of a sample
-type RawBinData struct {
-	Blocks []RefBlock
-	Sizes  []int64
-}
+	normBins := bd.Normalized()
 
-// NormBinData represents the normalized bin data of a sample
-type NormBinData struct {
-	Blocks []RefBlock
-	Sizes  []float64
-}
-
-// SampleIndex holds relevant information to operate in BAM index bins.
-type SampleIndex struct {
-	Name   string
-	Index  *bam.Index
-	RefMap map[int]*sam.Reference
-}
-
-// bins returns the bin size and BGZF chunks for each chunk from the bam index
-func (s *SampleIndex) bins() ([][]int64, error) {
-	idxRefs := reflect.ValueOf(*s.Index).FieldByName("idx").FieldByName("Refs")
-	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
-	refIdxs := (*(*[1 << 29]refIndex)(idxRefsPtr))[:idxRefs.Len()]
+	prevRef := normBins[0].Ref
+	refSizes := make([]float64, 0, 20000)
+	copies := make([]RefCopy, 0, 100)
 
 	var (
-		binSize       int64
-		intervalBegin bgzf.Offset
+		normCopy float64
+		estCopy  uint32
 	)
 
-	bins := make([][]int64, len(refIdxs))
-
-	for refNum, rIdx := range refIdxs {
-		// Ignore chromosomes too small to hold a chunk
-		if len(rIdx.intervals) < 2 {
-			bins[refNum] = make([]int64, 0)
-			continue
-		}
-
-		bins[refNum] = make([]int64, len(rIdx.intervals)-1)
-		for chunkNum, intervalEnd := range rIdx.intervals[1:] {
-			intervalBegin = rIdx.intervals[chunkNum]
-			bins[refNum][chunkNum] = VOffset(intervalEnd) - VOffset(intervalBegin)
-
-			if binSize < 0 {
-				panic(ErrNegativeVirtualOffset)
+	for _, b := range normBins {
+		if b.Ref != prevRef {
+			switch {
+			case len(refSizes) > 2:
+				normCopy = float64(ploidy) * medianF64(refSizes)
+			default:
+				normCopy = float64(ploidy) * meanF64(refSizes)
 			}
+			estCopy = uint32(roundF64(normCopy, 0.7, 0))
+			copies = append(copies, RefCopy{prevRef, estCopy, normCopy})
+			refSizes = make([]float64, 0, 200000)
 		}
-
-		rIdx.bins, rIdx.intervals = nil, nil
+		refSizes = append(refSizes, b.Size)
+		prevRef = b.Ref
 	}
 
-	return bins, nil
+	return copies, nil
 }
 
-// RawBins returns the raw bin data for the sample
-func (s *SampleIndex) RawBins() (RawBinData, error) {
-	bins, err := s.bins()
+// NewBinData returns BinData given path to a BAI/TBI and reference FAI index
+func NewBinData(idxPath, faiPath string) (*BinData, error) {
+	name, idxType := detectIndex(idxPath)
+
+	var (
+		err   error
+		rIdxs []internal.RefIndex
+	)
+
+	switch idxType {
+	case BAI:
+		rIdxs, err = baiRefIdxs(idxPath)
+	case TBI:
+		rIdxs, err = tbiRefIdxs(idxPath)
+	default:
+		err = fmt.Errorf("Error unknown index type: %s. must be .bai or .tbi", idxPath)
+	}
+
 	if err != nil {
-		return RawBinData{}, err
+		return nil, stacktrace.Propagate(err, "")
 	}
 
-	var pos int
-	refBlocks := make([]RefBlock, 0, 200000)
-	binSizes := make([]int64, 0, 200000)
-
-	for refID, refBins := range bins {
-		pos = 0
-		for _, binSize := range refBins {
-			refBlocks = append(refBlocks, RefBlock{refID, pos, pos + 16384})
-			binSizes = append(binSizes, binSize)
-			pos += 16384
-		}
-	}
-
-	return RawBinData{Blocks: refBlocks, Sizes: binSizes}, nil
-}
-
-// NormalizedBins returns the normalized BinData for the sample
-func (s *SampleIndex) NormalizedBins() (NormBinData, error) {
-	bins, err := s.bins()
+	refs, err := getRefMap(faiPath)
 	if err != nil {
-		return NormBinData{}, err
+		return nil, stacktrace.Propagate(err, "")
 	}
 
-	mergedBinSizes := make([]int64, 0, 200000)
-
-	for i := 0; i < len(bins); i++ {
-		for j := 0; j < len(bins[i]); j++ {
-			mergedBinSizes = append(mergedBinSizes, bins[i][j])
-		}
-	}
-
-	if len(mergedBinSizes) < 4096 {
-		fmt.Fprintf(os.Stderr, "Found only %d bins in the BAM index for %s\n", len(mergedBinSizes), s.Name)
-		return NormBinData{}, ErrNotEnoughBins
-	}
-
-	medianBinSize := MedianInt64(mergedBinSizes)
-
-	var pos int
-	refBlocks := make([]RefBlock, 0, 200000)
-	binSizes := make([]float64, 0, 200000)
-
-	for refID, refBins := range bins {
-		pos = 0
-		for _, binSize := range refBins {
-			refBlocks = append(refBlocks, RefBlock{refID, pos, pos + 16384})
-			binSizes = append(binSizes, float64(binSize)/medianBinSize)
-			pos += 16384
-		}
-	}
-
-	return NormBinData{Blocks: refBlocks, Sizes: binSizes}, nil
+	return &BinData{name, idxType, binSizes(rIdxs), refs}, nil
 }
 
-// Stats returns the number of mapped reads and total number of bases in the genome
-func (s *SampleIndex) Stats() (uint64, uint64) {
-	var mappedReads, genomeBases uint64
-
-	for refID, ref := range s.RefMap {
-		genomeBases += uint64(ref.Len())
-		refStats, ok := s.Index.ReferenceStats(refID)
-		if !ok {
-			msg := "chrom %s found in BAM header but missing in BAM index for sample %s\n"
-			fmt.Fprintf(os.Stderr, msg, ref.Name(), s.Name)
-			continue
-		}
-		mappedReads += refStats.Mapped
-	}
-
-	return mappedReads, genomeBases
+// String implements the fmt.Stringer interface for RefCopy
+func (rc RefCopy) String() string {
+	return fmt.Sprintf("%s\t%d\t%s", rc.Ref, rc.Est,
+		strconv.FormatFloat(rc.Norm, 'f', -1, 64))
 }
 
-// NewSampleIndex returns a new SampleIndex using the given bam index and header
-func NewSampleIndex(idx *bam.Index, hdr *sam.Header) (*SampleIndex, error) {
-	var sample string
-	samples := make(map[string]bool)
-	refMap := make(map[int]*sam.Reference)
-
-	for _, rg := range hdr.RGs() {
-		sample = rg.Get(sam.NewTag("SM"))
-		samples[sample] = true
-	}
-
-	if len(samples) != 1 {
-		return nil, ErrTooManySamples
-	}
-
-	for _, ref := range hdr.Refs() {
-		refMap[ref.ID()] = ref
-	}
-
-	return &SampleIndex{Name: sample, Index: idx, RefMap: refMap}, nil
+// String implements the fmt.Stringer interface for Bin
+func (b Bin) String() string {
+	return fmt.Sprintf("%s\t%d\t%d\t%s", b.Ref, b.Start, b.End,
+		strconv.FormatFloat(b.Size, 'f', -1, 64))
 }

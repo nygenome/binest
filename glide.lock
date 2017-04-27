@@ -1,6 +1,10 @@
-hash: 52e8960702a845e3e930fe36420852f7dbc47441c48243abe63d1dff5dbb99b6
-updated: 2017-04-22T19:05:57.315697537-04:00
+hash: d22a94f919bb69d7405adbaf32107114877d9288eb46f936baa6c9cd68828039
+updated: 2017-04-26T20:31:06.360666488-04:00
 imports:
+- name: github.com/biogo/biogo
+  version: 0f3e6a0d86d287fc9b1fdcbce89d730264f50024
+  subpackages:
+  - io/seqio/fai
 - name: github.com/biogo/hts
   version: 71ed6f0cedb14828957509ab40af023760e71cb8
   subpackages:
@@ -9,13 +13,9 @@ imports:
   - bgzf/index
   - internal
   - sam
-- name: github.com/biogo/store
-  version: 913427a1d5e89604e50ea1db0f28f34966d61602
+  - tabix
+- name: github.com/palantir/stacktrace
+  version: 78658fd2d1772b755720ed8c44367d11ee5380d6
   subpackages:
-  - interval
-  - llrb
-- name: github.com/brentp/xopen
-  version: 83f195adad83cdc80142215b0d73b557b49b585c
-- name: github.com/remeh/sizedwaitgroup
-  version: 4b44541c93591ee0e73747d6081e61bd8c58b5c7
+  - cleanpath
 testImports: []
