@@ -13,7 +13,7 @@ import (
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/tabix"
-	"github.com/palantir/stacktrace"
+	"github.com/pkg/errors"
 
 	"github.com/omicsnut/binest/internal"
 )
@@ -51,13 +51,13 @@ func detectIndex(idxPath string) (string, IndexType) {
 func getRefMap(faiPath string) (map[uint32]string, error) {
 	fh, err := os.Open(faiPath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "Error opening FAI: %s", faiPath)
+		return nil, errors.Wrapf(err, "Error opening FAI: %s", faiPath)
 	}
 	defer fh.Close()
 
 	faiIdx, err := fai.ReadFrom(bufio.NewReader(fh))
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "Error reading FAI: %s", faiPath)
+		return nil, errors.Wrapf(err, "Error reading FAI: %s", faiPath)
 	}
 
 	faiRecords := make([]fai.Record, 0, len(faiIdx))
@@ -81,13 +81,13 @@ func getRefMap(faiPath string) (map[uint32]string, error) {
 func baiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 	fh, err := os.Open(idxPath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "Error open BAI: %s", idxPath)
+		return nil, errors.Wrapf(err, "Error open BAI: %s", idxPath)
 	}
 	defer fh.Close()
 
 	idx, err := bam.ReadIndex(bufio.NewReader(fh))
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "Error reading BAI: %s", idxPath)
+		return nil, errors.Wrapf(err, "Error reading BAI: %s", idxPath)
 	}
 
 	idxRefs := reflect.ValueOf(idx).FieldByName("idx").FieldByName("Refs")
@@ -101,13 +101,13 @@ func baiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 func tbiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 	fh, err := os.Open(idxPath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "Error opening TBI: %s", idxPath)
+		return nil, errors.Wrapf(err, "Error opening TBI: %s", idxPath)
 	}
 	defer fh.Close()
 
 	idx, err := tabix.ReadFrom(bufio.NewReader(fh))
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "Error reading TBI: %s", idxPath)
+		return nil, errors.Wrapf(err, "Error reading TBI: %s", idxPath)
 	}
 
 	idxRefs := reflect.ValueOf(idx).FieldByName("idx").FieldByName("Refs")

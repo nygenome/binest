@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/omicsnut/binest/internal"
-	"github.com/palantir/stacktrace"
+	"github.com/pkg/errors"
 )
 
 // BinData holds the binSizes, RefMap and Name of one sample
@@ -132,16 +132,16 @@ func NewBinData(idxPath, faiPath string) (*BinData, error) {
 	case TBI:
 		rIdxs, err = tbiRefIdxs(idxPath)
 	default:
-		err = fmt.Errorf("Error unknown index type: %s. must be .bai or .tbi", idxPath)
+		err = errors.Errorf("index file %s must be a .bai or .tbi", idxPath)
 	}
 
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "")
+		return nil, errors.Wrap(err, "Error unknown index type")
 	}
 
 	refs, err := getRefMap(faiPath)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "")
+		return nil, errors.Wrap(err, "Error fetching reference data")
 	}
 
 	return &BinData{name, idxType, binSizes(rIdxs), refs}, nil

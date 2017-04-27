@@ -10,4 +10,5 @@ import:
   - bam
   - bgzf
   - tabix
-- package: github.com/palantir/stacktrace
+- package: github.com/pkg/errors
+  version: ^0.8.0

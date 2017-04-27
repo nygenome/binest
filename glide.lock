@@ -1,5 +1,5 @@
-hash: d22a94f919bb69d7405adbaf32107114877d9288eb46f936baa6c9cd68828039
-updated: 2017-04-26T20:31:06.360666488-04:00
+hash: be2a13a4667d55a69cc5360a305e5764fef444de1437a5a3f5d3daf8b11bf869
+updated: 2017-04-26T21:51:32.750909919-04:00
 imports:
 - name: github.com/biogo/biogo
   version: 0f3e6a0d86d287fc9b1fdcbce89d730264f50024
@@ -14,8 +14,6 @@ imports:
   - internal
   - sam
   - tabix
-- name: github.com/palantir/stacktrace
-  version: 78658fd2d1772b755720ed8c44367d11ee5380d6
-  subpackages:
-  - cleanpath
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
 testImports: []
