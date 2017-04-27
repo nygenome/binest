@@ -100,12 +100,7 @@ func (bd *BinData) Copies(ploidy int) []RefCopy {
 
 	for _, b := range normBins {
 		if b.Ref != prevRef {
-			switch {
-			case len(refSizes) > 2:
-				normCopy = float64(ploidy) * medianF64(refSizes)
-			default:
-				normCopy = float64(ploidy) * meanF64(refSizes)
-			}
+			normCopy = float64(ploidy) * medianF64(refSizes)
 			estCopy = uint32(roundF64(normCopy, 0.7, 0))
 			copies = append(copies, RefCopy{prevRef, estCopy, normCopy})
 			refSizes = make([]float64, 0, 200000)

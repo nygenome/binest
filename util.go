@@ -24,6 +24,10 @@ func roundF64(value, threshold float64, precision int) (rounded float64) {
 // medianI64 returns the median from []int64.
 // recursively finds a non-zero median if possible.
 func medianI64(arr []int64) (median float64) {
+	if len(arr) <= 2 {
+		return meanI64(arr)
+	}
+
 	lessFunc := func(i, j int) bool { return arr[i] < arr[j] }
 	if !sort.SliceIsSorted(arr, lessFunc) {
 		sort.Slice(arr, lessFunc)
@@ -49,6 +53,10 @@ func medianI64(arr []int64) (median float64) {
 // medianF64 returns the median from []float64.
 // recursively finds a non-zero median if possible.
 func medianF64(arr []float64) (median float64) {
+	if len(arr) <= 2 {
+		return meanF64(arr)
+	}
+
 	lessFunc := func(i, j int) bool { return arr[i] < arr[j] }
 	if !sort.SliceIsSorted(arr, lessFunc) {
 		sort.Slice(arr, lessFunc)
