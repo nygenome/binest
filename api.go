@@ -1,7 +1,6 @@
 package binest
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -87,12 +86,7 @@ func (bd *BinData) Normalized() []Bin {
 }
 
 // Copies returns the copy number estimates for all references in the sample
-func (bd *BinData) Copies(ploidy int) ([]RefCopy, error) {
-	if bd.IdxType != BAI {
-		msg := "can't estimate copy number from TABIX index"
-		return nil, stacktrace.Propagate(errors.New(msg), "")
-	}
-
+func (bd *BinData) Copies(ploidy int) []RefCopy {
 	normBins := bd.Normalized()
 
 	prevRef := normBins[0].Ref
@@ -120,7 +114,7 @@ func (bd *BinData) Copies(ploidy int) ([]RefCopy, error) {
 		prevRef = b.Ref
 	}
 
-	return copies, nil
+	return copies
 }
 
 // NewBinData returns BinData given path to a BAI/TBI and reference FAI index
