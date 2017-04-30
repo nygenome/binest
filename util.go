@@ -5,20 +5,18 @@ import (
 	"sort"
 )
 
-// roundF64 returns the rounded value of a float64.
-// It returns `precision` decimal places and rounds
-// to next integer value at `threshold` mark.
-func roundF64(value, threshold float64, precision int) (rounded float64) {
-	scaling := math.Pow(10, float64(precision))
-	digits := value * scaling
-	_, frac := math.Modf(digits)
-	if frac >= threshold {
-		rounded = math.Ceil(digits)
-	} else {
-		rounded = math.Floor(digits)
+// roundChromSize returns the rounded copy number from the nomalized chrom size.
+// It returns `precision` decimal places and rounds to next integer value
+// at `threshold` mark. values with frac >= 0.7 are ceiled else floored.
+func roundChromSize(normSize float64) (copyNum uint32) {
+	_, frac := math.Modf(normSize)
+	switch {
+	case frac >= 0.7:
+		copyNum = uint32(math.Ceil(normSize))
+	default:
+		copyNum = uint32(math.Floor(normSize))
 	}
-	rounded /= scaling
-	return rounded
+	return copyNum
 }
 
 // medianI64 returns the median from []int64.
