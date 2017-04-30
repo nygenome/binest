@@ -90,7 +90,7 @@ func baiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 		return nil, errors.Wrapf(err, "Error reading BAI: %s", idxPath)
 	}
 
-	idxRefs := reflect.ValueOf(idx).FieldByName("idx").FieldByName("Refs")
+	idxRefs := reflect.ValueOf(*idx).FieldByName("idx").FieldByName("Refs")
 	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
 	refIdxs := (*(*[1 << 29]internal.RefIndex)(idxRefsPtr))[:idxRefs.Len()]
 
@@ -105,12 +105,17 @@ func tbiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 	}
 	defer fh.Close()
 
-	idx, err := tabix.ReadFrom(bufio.NewReader(fh))
+	tbxRdr, err := bgzf.NewReader(bufio.NewReader(fh), 2)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error reading TBI: %s", idxPath)
 	}
 
-	idxRefs := reflect.ValueOf(idx).FieldByName("idx").FieldByName("Refs")
+	idx, err := tabix.ReadFrom(tbxRdr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error reading TBI: %s", idxPath)
+	}
+
+	idxRefs := reflect.ValueOf(*idx).FieldByName("idx").FieldByName("Refs")
 	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
 	refIdxs := (*(*[1 << 29]internal.RefIndex)(idxRefsPtr))[:idxRefs.Len()]
 
