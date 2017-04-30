@@ -2,7 +2,9 @@ package binest
 
 import (
 	"fmt"
+	"math"
 	"strconv"
+	"strings"
 
 	"github.com/omicsnut/binest/internal"
 	"github.com/pkg/errors"
@@ -14,6 +16,7 @@ type BinData struct {
 	IdxType  IndexType
 	binSizes [][]int64
 	refMap   map[uint32]string
+	cache    map[string][]Bin
 }
 
 // Bin holds the size and refblock for a reference bin
@@ -31,8 +34,23 @@ type RefCopy struct {
 	Norm float64
 }
 
+// SexEstimate holds the gender, genotype, X and Y copies for a sample
+type SexEstimate struct {
+	Name   string
+	Gender string
+	SexGT  string
+	XCopy  uint32
+	YCopy  uint32
+	XNorm  float64
+	YNorm  float64
+}
+
 // Raw returns the raw bins for the sample
 func (bd *BinData) Raw() []Bin {
+	if bins, ok := bd.cache["raw"]; ok {
+		return bins
+	}
+
 	bins := make([]Bin, 0, 200000)
 
 	var position uint32
@@ -49,6 +67,7 @@ func (bd *BinData) Raw() []Bin {
 		}
 	}
 
+	bd.cache["raw"] = bins
 	return bins
 }
 
@@ -65,44 +84,55 @@ func (bd *BinData) medianBinSize() float64 {
 
 // Normalized returns the normalized bins for the sample
 func (bd *BinData) Normalized() []Bin {
+	if bins, ok := bd.cache["norm"]; ok {
+		return bins
+	}
+
 	bins := make([]Bin, 0, 200000)
 	medianSize := bd.medianBinSize()
 
-	var position uint32
+	var (
+		normSize float64
+		position uint32
+	)
+
 	for refID, refBins := range bd.binSizes {
 		position = 0
 		for _, binSize := range refBins {
+			normSize = float64(binSize) / medianSize
+
+			if math.IsNaN(normSize) {
+				position += internal.TileWidth
+				continue
+			}
+
 			bins = append(bins, Bin{
 				Ref:   bd.refMap[uint32(refID)],
 				Start: position,
 				End:   position + internal.TileWidth,
-				Size:  float64(binSize) / medianSize,
+				Size:  normSize,
 			})
 			position += internal.TileWidth
 		}
 	}
 
+	bd.cache["norm"] = bins
 	return bins
 }
 
 // Copies returns the copy number estimates for all references in the sample
-func (bd *BinData) Copies(ploidy int) []RefCopy {
+func (bd *BinData) Copies(ploidy uint) []RefCopy {
 	normBins := bd.Normalized()
 
 	prevRef := normBins[0].Ref
 	refSizes := make([]float64, 0, 20000)
 	copies := make([]RefCopy, 0, 100)
 
-	var (
-		normCopy float64
-		estCopy  uint32
-	)
-
+	var normCopy float64
 	for _, b := range normBins {
 		if b.Ref != prevRef {
 			normCopy = float64(ploidy) * medianF64(refSizes)
-			estCopy = uint32(roundF64(normCopy, 0.7, 0))
-			copies = append(copies, RefCopy{prevRef, estCopy, normCopy})
+			copies = append(copies, RefCopy{prevRef, roundChromSize(normCopy), normCopy})
 			refSizes = make([]float64, 0, 200000)
 		}
 		refSizes = append(refSizes, b.Size)
@@ -110,6 +140,42 @@ func (bd *BinData) Copies(ploidy int) []RefCopy {
 	}
 
 	return copies
+}
+
+// DetectSex returns the SexEstimate for the sample from the bindata
+func (bd *BinData) DetectSex(ploidy uint) SexEstimate {
+	copies := bd.Copies(ploidy)
+
+	var (
+		xCopy  uint32
+		yCopy  uint32
+		xNorm  float64
+		yNorm  float64
+		gender string
+		sexGT  string
+	)
+
+	for _, c := range copies {
+		if strings.HasSuffix(c.Ref, "X") {
+			xCopy, xNorm = c.Est, c.Norm
+		}
+		if strings.HasSuffix(c.Ref, "Y") {
+			yCopy, yNorm = c.Est, c.Norm
+		}
+	}
+
+	sexGT = strings.Repeat("X", int(xCopy)) + strings.Repeat("Y", int(yCopy))
+
+	switch {
+	case xCopy == uint32(2) && yCopy == uint32(0):
+		gender = "female"
+	case xCopy == uint32(1) && yCopy == uint32(1):
+		gender = "male"
+	default:
+		gender = "unknown"
+	}
+
+	return SexEstimate{bd.Name, gender, sexGT, xCopy, yCopy, xNorm, yNorm}
 }
 
 // NewBinData returns BinData given path to a BAI/TBI and reference FAI index
@@ -139,7 +205,16 @@ func NewBinData(idxPath, faiPath string) (*BinData, error) {
 		return nil, errors.Wrap(err, "Error fetching reference data")
 	}
 
-	return &BinData{name, idxType, binSizes(rIdxs), refs}, nil
+	cache := make(map[string][]Bin, 2)
+
+	return &BinData{name, idxType, binSizes(rIdxs), refs, cache}, nil
+}
+
+// String implements the fmt.Stringer interface for SexEstimate
+func (s SexEstimate) String() string {
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s", s.Name, s.Gender, s.SexGT,
+		strconv.FormatFloat(s.XNorm, 'f', -1, 64),
+		strconv.FormatFloat(s.YNorm, 'f', -1, 64))
 }
 
 // String implements the fmt.Stringer interface for RefCopy
