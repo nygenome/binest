@@ -1,6 +1,12 @@
-hash: 0f0219e48bee9a6cd207061126324820a981cdb4141d4e65db85b87ebedd6c1c
-updated: 2017-04-27T14:11:44.509754349-04:00
+hash: ff3afaaeafbe08fc016e95e09604fc4af41738d90a1fbb8272e96d2ccbf10e9c
+updated: 2017-04-29T20:28:11.574386881-04:00
 imports:
+- name: github.com/alecthomas/template
+  version: a0175ee3bccc567396460bf5acd36800cb10c49c
+  subpackages:
+  - parse
+- name: github.com/alecthomas/units
+  version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/biogo/biogo
   version: 0f3e6a0d86d287fc9b1fdcbce89d730264f50024
   subpackages:
@@ -16,6 +22,8 @@ imports:
   - tabix
 - name: github.com/pkg/errors
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: github.com/remeh/sizedwaitgroup
+  version: 4b44541c93591ee0e73747d6081e61bd8c58b5c7
 - name: gopkg.in/alecthomas/kingpin.v2
   version: 7f0871f2e17818990e4eed73f9b5c2f429501228
 testImports: []
