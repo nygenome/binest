@@ -2,30 +2,36 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 )
 
-// readIndexes merges all indexes if any, from both cli args and stdin
-func readIndexes(allArgs [3][]string) ([]string, bool) {
-	indexes := make([]string, 0, 100)
+// putIndexes merges all indexes if any, from both cli args and stdin and writes to chan
+func putIndexes(args []string, results chan<- string) error {
+	gotInput := len(args) > 0
 
-	for _, cmdArgs := range allArgs {
-		indexes = append(indexes, cmdArgs...)
+	for _, arg := range args {
+		results <- arg
 	}
 
 	if hasStdin() {
 		bufScanner := bufio.NewScanner(os.Stdin)
+		gotInput = true
 		for bufScanner.Scan() {
-			indexes = append(indexes, bufScanner.Text())
+			results <- bufScanner.Text()
 		}
 		if err := bufScanner.Err(); err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading data from stdin")
-			panic(err)
+			return err
 		}
 	}
 
-	return indexes, len(indexes) > 0
+	if !gotInput {
+		return errors.New("No input obtained from stdin and cli args")
+	}
+
+	return nil
 }
 
 // hasStdin checks if process can read from /dev/stdin
