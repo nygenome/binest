@@ -12,7 +12,7 @@ import (
 )
 
 // runSex is the command line interface for binest size
-func runSex(idxPaths <-chan string, finished chan<- bool, faiPath string, ploidy uint) {
+func runSex(idxPaths <-chan string, finished chan<- bool, refs map[uint32]string, ploidy uint) {
 	swg := sizedwaitgroup.New(runtime.GOMAXPROCS(0))
 
 	sampleSexes := make(chan binest.SexEstimate, 100)
@@ -23,17 +23,17 @@ func runSex(idxPaths <-chan string, finished chan<- bool, faiPath string, ploidy
 	for idxPath := range idxPaths {
 		swg.Add()
 
-		go func(idx, fai string, results chan<- binest.SexEstimate) {
+		go func(idx string, results chan<- binest.SexEstimate) {
 			defer swg.Done()
 
-			bd, err := binest.NewBinData(idx, fai)
+			bd, err := binest.NewBinData(idx)
 			if err != nil {
 				panic(err)
 			}
 
-			results <- bd.DetectSex(ploidy)
+			results <- bd.DetectSex(ploidy, refs)
 
-		}(idxPath, faiPath, sampleSexes)
+		}(idxPath, sampleSexes)
 
 	}
 

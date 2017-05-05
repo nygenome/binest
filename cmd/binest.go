@@ -33,7 +33,7 @@ func main() {
 	app.HelpFlag.Short('h')
 	app.VersionFlag.Short('v')
 
-	cmd, err := app.Parse(os.Args[1:])
+	cmd, parseErr := app.Parse(os.Args[1:])
 	indexes := make(chan string, 100)
 	doneChan := make(chan bool, 1)
 
@@ -48,9 +48,15 @@ func main() {
 
 	runtime.GOMAXPROCS(int(*procs))
 
-	switch kingpin.MustParse(cmd, err) {
+	refMap, err := binest.GetRefMap(*fai)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading reference FAI index!\n")
+		panic(err)
+	}
+
+	switch kingpin.MustParse(cmd, parseErr) {
 	case "copy":
-		go runCopy(indexes, doneChan, *fai, *cPloidy)
+		go runCopy(indexes, doneChan, refMap, *cPloidy)
 
 		if err = putIndexes(*cIdxs, indexes); err != nil {
 			fmt.Fprintln(os.Stderr, "No indexes provided for copy number estimate!")
@@ -61,7 +67,7 @@ func main() {
 		close(indexes)
 		<-doneChan
 	case "size":
-		go runSize(indexes, doneChan, *fai, *szRaw)
+		go runSize(indexes, doneChan, refMap, *szRaw)
 
 		if err = putIndexes(*szIdxs, indexes); err != nil {
 			fmt.Fprintln(os.Stderr, "No indexes provided for size calculation!")
@@ -72,7 +78,7 @@ func main() {
 		close(indexes)
 		<-doneChan
 	case "sex":
-		go runSex(indexes, doneChan, *fai, *sPloidy)
+		go runSex(indexes, doneChan, refMap, *sPloidy)
 
 		if err = putIndexes(*sxIdxs, indexes); err != nil {
 			fmt.Fprintln(os.Stderr, "No indexes provided for sex estimate!")

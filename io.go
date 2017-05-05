@@ -47,8 +47,8 @@ func detectIndex(idxPath string) (string, IndexType) {
 	}
 }
 
-// getRefMap returns map[uint32]string from the reference FAI path
-func getRefMap(faiPath string) (map[uint32]string, error) {
+// GetRefMap returns map[uint32]string from the reference FAI path
+func GetRefMap(faiPath string) (map[uint32]string, error) {
 	fh, err := os.Open(faiPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error opening FAI: %s", faiPath)

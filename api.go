@@ -15,7 +15,6 @@ type BinData struct {
 	Name     string
 	IdxType  IndexType
 	binSizes [][]int64
-	refMap   map[uint32]string
 	cache    map[string][]Bin
 }
 
@@ -46,19 +45,30 @@ type SexEstimate struct {
 }
 
 // Raw returns the raw bins for the sample
-func (bd *BinData) Raw() []Bin {
+func (bd *BinData) Raw(refMap map[uint32]string) []Bin {
 	if bins, ok := bd.cache["raw"]; ok {
 		return bins
 	}
 
 	bins := make([]Bin, 0, 200000)
 
-	var position uint32
+	var (
+		found     bool
+		position  uint32
+		chromName string
+	)
+
 	for refID, refBins := range bd.binSizes {
 		position = 0
+
+		if chromName, found = refMap[uint32(refID)]; !found {
+			position += internal.TileWidth
+			continue
+		}
+
 		for _, binSize := range refBins {
 			bins = append(bins, Bin{
-				Ref:   bd.refMap[uint32(refID)],
+				Ref:   chromName,
 				Start: position,
 				End:   position + internal.TileWidth,
 				Size:  float64(binSize),
@@ -83,7 +93,7 @@ func (bd *BinData) medianBinSize() float64 {
 }
 
 // Normalized returns the normalized bins for the sample
-func (bd *BinData) Normalized() []Bin {
+func (bd *BinData) Normalized(refMap map[uint32]string) []Bin {
 	if bins, ok := bd.cache["norm"]; ok {
 		return bins
 	}
@@ -92,8 +102,10 @@ func (bd *BinData) Normalized() []Bin {
 	medianSize := bd.medianBinSize()
 
 	var (
-		normSize float64
-		position uint32
+		found     bool
+		normSize  float64
+		position  uint32
+		chromName string
 	)
 
 	for refID, refBins := range bd.binSizes {
@@ -106,8 +118,13 @@ func (bd *BinData) Normalized() []Bin {
 				continue
 			}
 
+			if chromName, found = refMap[uint32(refID)]; !found {
+				position += internal.TileWidth
+				continue
+			}
+
 			bins = append(bins, Bin{
-				Ref:   bd.refMap[uint32(refID)],
+				Ref:   chromName,
 				Start: position,
 				End:   position + internal.TileWidth,
 				Size:  normSize,
@@ -121,8 +138,8 @@ func (bd *BinData) Normalized() []Bin {
 }
 
 // Copies returns the copy number estimates for all references in the sample
-func (bd *BinData) Copies(ploidy uint) []RefCopy {
-	normBins := bd.Normalized()
+func (bd *BinData) Copies(ploidy uint, refMap map[uint32]string) []RefCopy {
+	normBins := bd.Normalized(refMap)
 
 	prevRef := normBins[0].Ref
 	refSizes := make([]float64, 0, 20000)
@@ -143,8 +160,8 @@ func (bd *BinData) Copies(ploidy uint) []RefCopy {
 }
 
 // DetectSex returns the SexEstimate for the sample from the bindata
-func (bd *BinData) DetectSex(ploidy uint) SexEstimate {
-	copies := bd.Copies(ploidy)
+func (bd *BinData) DetectSex(ploidy uint, refMap map[uint32]string) SexEstimate {
+	copies := bd.Copies(ploidy, refMap)
 
 	var (
 		xCopy  uint32
@@ -179,7 +196,7 @@ func (bd *BinData) DetectSex(ploidy uint) SexEstimate {
 }
 
 // NewBinData returns BinData given path to a BAI/TBI and reference FAI index
-func NewBinData(idxPath, faiPath string) (*BinData, error) {
+func NewBinData(idxPath string) (*BinData, error) {
 	name, idxType := detectIndex(idxPath)
 
 	var (
@@ -200,14 +217,9 @@ func NewBinData(idxPath, faiPath string) (*BinData, error) {
 		return nil, errors.Wrap(err, "Error unknown index type")
 	}
 
-	refs, err := getRefMap(faiPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Error fetching reference data")
-	}
-
 	cache := make(map[string][]Bin, 2)
 
-	return &BinData{name, idxType, binSizes(rIdxs), refs, cache}, nil
+	return &BinData{name, idxType, binSizes(rIdxs), cache}, nil
 }
 
 // String implements the fmt.Stringer interface for SexEstimate

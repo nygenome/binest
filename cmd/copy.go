@@ -12,7 +12,7 @@ import (
 )
 
 // runCopy is the command line interface for binest copy
-func runCopy(idxPaths <-chan string, finished chan<- bool, faiPath string, ploidy uint) {
+func runCopy(idxPaths <-chan string, finished chan<- bool, refs map[uint32]string, ploidy uint) {
 	swg := sizedwaitgroup.New(runtime.GOMAXPROCS(0))
 
 	sampleCopies := make(chan sampleCopy, 100)
@@ -23,18 +23,18 @@ func runCopy(idxPaths <-chan string, finished chan<- bool, faiPath string, ploid
 	for idxPath := range idxPaths {
 		swg.Add()
 
-		go func(idx, fai string, results chan<- sampleCopy) {
+		go func(idx string, results chan<- sampleCopy) {
 			defer swg.Done()
 
-			bd, err := binest.NewBinData(idx, fai)
+			bd, err := binest.NewBinData(idx)
 			if err != nil {
 				panic(err)
 			}
 
-			copies := bd.Copies(ploidy)
+			copies := bd.Copies(ploidy, refs)
 			results <- sampleCopy{bd.Name, copies}
 
-		}(idxPath, faiPath, sampleCopies)
+		}(idxPath, sampleCopies)
 
 	}
 

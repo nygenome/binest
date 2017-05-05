@@ -12,7 +12,7 @@ import (
 )
 
 // runSize is the command line interface for binest size
-func runSize(idxPaths <-chan string, finished chan<- bool, faiPath string, raw bool) {
+func runSize(idxPaths <-chan string, finished chan<- bool, refs map[uint32]string, raw bool) {
 	swg := sizedwaitgroup.New(runtime.GOMAXPROCS(0))
 
 	sampleSizes := make(chan sampleSize, 100)
@@ -21,29 +21,29 @@ func runSize(idxPaths <-chan string, finished chan<- bool, faiPath string, raw b
 	go writeSizeResult(sampleSizes, doneChan)
 
 	if raw {
-		fmt.Fprintln(os.Stdout, "SAMPLE\tCHROM\tSTART\tEND\tRAW_SIZE")
+		fmt.Fprintln(os.Stdout, "CHROM\tSTART\tEND\tRAW_SIZE\tSAMPLE")
 	} else {
-		fmt.Fprintln(os.Stdout, "SAMPLE\tCHROM\tSTART\tEND\tNORMALIZED_SIZE")
+		fmt.Fprintln(os.Stdout, "CHROM\tSTART\tEND\tNORMALIZED_SIZE\tSAMPLE")
 	}
 
 	for idxPath := range idxPaths {
 		swg.Add()
 
-		go func(idx, fai string, results chan<- sampleSize) {
+		go func(idx string, results chan<- sampleSize) {
 			defer swg.Done()
 
-			bd, err := binest.NewBinData(idx, fai)
+			bd, err := binest.NewBinData(idx)
 			if err != nil {
 				panic(err)
 			}
 
 			if raw {
-				results <- sampleSize{bd.Name, bd.Raw()}
+				results <- sampleSize{bd.Name, bd.Raw(refs)}
 			} else {
-				results <- sampleSize{bd.Name, bd.Normalized()}
+				results <- sampleSize{bd.Name, bd.Normalized(refs)}
 			}
 
-		}(idxPath, faiPath, sampleSizes)
+		}(idxPath, sampleSizes)
 
 	}
 
@@ -60,7 +60,7 @@ func writeSizeResult(results <-chan sampleSize, finished chan<- bool) {
 
 	for result := range results {
 		for _, bin := range result.sizes {
-			fmt.Fprintf(stdout, "%s\t%s\n", result.name, bin)
+			fmt.Fprintf(stdout, "%s\t%s\n", bin, result.name)
 		}
 	}
 
