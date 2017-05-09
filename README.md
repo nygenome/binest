@@ -1,28 +1,39 @@
 # binest
-> Fast estimates of copy number and sex using BAM index
 
-##### USAGE
+##### Description
+
+binest calculates chromcopy, sex and normalized sizes per 16kb chunk in the genome
+from the BAM index. 
+
+In order to map the chunk values back to their genomic co-ordinates,
+binest tries to read the BAM header for the corresponding BAM file.
+If the BAM file doesn't exist, the reference FAI index must be provided.
+
+Note: Any TABIX indexed file can be used with binest to get an idea of data density across the genome.
+The reference FAI index must always be provided when working with TABIX indexes.
+
+
+##### Example usage
+
+The basic usage for all binest commands are the same.
+Examples below show usage for the size command.
+
 ```shell
-usage: binest [<flags>] <command> [<args> ...]
+# Scenario 1 - BAM and BAI for sample present
+binest size [PATH_TO_BAI_FILE]
+binest size [PATH_TO_BAI_FILE1] [PATH_TO_BAI_FILE2]...
+ls {PROJECT}/{SAMPLE}_*/*.bai | binest size
 
-Estimate copy number, size and sex from BAI/TBI index bins.
+# Scenario 2 - BAI only present. BAM not present.
+binest size --fai [REFERENCE.fasta.fai] [PATH_TO_BAI_FILE]
+binest size -f [REFERENCE.fasta.fai] [PATH_TO_BAI_FILE1] [PATH_TO_BAI_FILE2]...
+ls {PROJECT}/{SAMPLE}_*/*.bai | binest size -f [REFERENCE.fasta.fai]
 
-Flags:
-  -h, --help     Show context-sensitive help (also try --help-long and --help-man).
-  -v, --version  Show application version.
-  -f, --fai=FAI  path to reference FAI index.
-  -c, --cores=1  number of cores to use.
+# Scenario 3 - TBI index.
+binest size --fai [REFERENCE.fasta.fai] [PATH_TO_TBI_FILE]
+binest size -f [REFERENCE.fasta.fai] [PATH_TO_TBI_FILE1] [PATH_TO_TBI_FILE2]...
+ls {PROJECT}/{SAMPLE}_*/*.tbi | binest size -f [REFERENCE.fasta.fai]
 
-Commands:
-  help [<command>...]
-    Show help.
-
-  copy [<flags>] [<index>...]
-    Estimate per chromosome copy number from one or more indexes (stdin or arguments).
-
-  size [<flags>] [<index>...]
-    Compute size across 16kb bins from one or more indexes (stdin or arguments).
-
-  sex [<flags>] [<index>...]
-    Estimate sex genotype of a sample from one or more indexes (stdin or arguments).
+## Additional parameters can be seen by running
+binest -h
 ```
