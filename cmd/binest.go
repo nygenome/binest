@@ -12,21 +12,21 @@ import (
 func main() {
 
 	var (
-		desc  = "Estimate copy number, size and sex from BAI/TBI index bins."
+		desc  = "Estimate chromcopy, sex and size from BAI/TBI index bins."
 		app   = kingpin.New("binest", desc).Version(fmt.Sprintf("binest v%s", binest.Version))
 		fai   = app.Flag("fai", "path to reference FAI index.").Short('f').ExistingFile()
 		procs = app.Flag("cores", "number of cores to use.").Short('c').Default("1").Uint()
 
-		copy = app.Command("copy", "Estimate per chromosome copy number from one or more indexes (stdin or arguments).")
-		size = app.Command("size", "Compute size across 16kb bins from one or more indexes (stdin or arguments).")
-		sex  = app.Command("sex", "Estimate sex genotype of a sample from one or more indexes (stdin or arguments).")
+		chromcopy = app.Command("chromcopy", "Estimate per chromosome copy from one or more indexes (stdin or arguments).")
+		size      = app.Command("size", "Compute size across 16kb bins from one or more indexes (stdin or arguments).")
+		sex       = app.Command("sex", "Estimate sex genotype from one or more indexes (stdin or arguments).")
 
-		cIdxs  = copy.Arg("index", "path to one or more indexes.").ExistingFiles()
+		cIdxs  = chromcopy.Arg("index", "path to one or more indexes.").ExistingFiles()
 		szIdxs = size.Arg("index", "path to one or more indexes.").ExistingFiles()
 		sxIdxs = sex.Arg("index", "path to one or more indexes.").ExistingFiles()
 
 		szRaw   = size.Flag("raw", "output raw sizes without normalization.").Short('r').Default("false").Bool()
-		cPloidy = copy.Flag("ploidy", "ploidy to use for copy number estimate.").Short('p').Default("2").Uint()
+		cPloidy = chromcopy.Flag("ploidy", "ploidy to use for per chromosome copy estimate.").Short('p').Default("2").Uint()
 		sPloidy = sex.Flag("ploidy", "ploidy to use for sex estimate.").Short('p').Default("2").Uint()
 	)
 
@@ -39,11 +39,11 @@ func main() {
 	runtime.GOMAXPROCS(int(*procs))
 
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
-	case "copy":
-		go runCopy(indexes, doneChan, *fai, *cPloidy)
+	case "chromcopy":
+		go runChromCopy(indexes, doneChan, *fai, *cPloidy)
 
 		if err := putIndexes(*cIdxs, indexes); err != nil {
-			fmt.Fprintln(os.Stderr, "No indexes provided for copy number estimate!")
+			fmt.Fprintln(os.Stderr, "No indexes provided for chromcopy estimate!")
 			app.Usage(os.Args[1:])
 			os.Exit(1)
 		}
