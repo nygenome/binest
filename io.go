@@ -133,7 +133,7 @@ func GetRefMap(faiPath string, idxPath string) (map[uint32]string, error) {
 	}
 
 	// FAI index provided and working with either BAM/TABIX index
-	return getRefMapFaiIdx(idxPath)
+	return getRefMapFaiIdx(faiPath)
 }
 
 // baiRefIdxs returns the slice of reference indexes from a BAI index
