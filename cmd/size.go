@@ -12,7 +12,7 @@ import (
 )
 
 // runSize is the command line interface for binest size
-func runSize(idxPaths <-chan string, finished chan<- bool, refs map[uint32]string, raw bool) {
+func runSize(idxPaths <-chan string, finished chan<- bool, faiPath string, raw bool) {
 	swg := sizedwaitgroup.New(runtime.GOMAXPROCS(0))
 
 	sampleSizes := make(chan sampleSize, 100)
@@ -33,6 +33,11 @@ func runSize(idxPaths <-chan string, finished chan<- bool, refs map[uint32]strin
 			defer swg.Done()
 
 			bd, err := binest.NewBinData(idx)
+			if err != nil {
+				panic(err)
+			}
+
+			refs, err := binest.GetRefMap(faiPath, idx)
 			if err != nil {
 				panic(err)
 			}

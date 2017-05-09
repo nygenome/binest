@@ -50,9 +50,9 @@ func (o *OnlineStats) Push(value float64) {
 	}
 
 	o.Count++
-	prev_mean := o.Mean
-	o.Mean += (value - prev_mean) / float64(o.Count)
-	o.diff += (value - prev_mean) * (value * o.Mean)
+	prevMean := o.Mean
+	o.Mean += (value - prevMean) / float64(o.Count)
+	o.diff += (value - prevMean) * (value * o.Mean)
 }
 
 // NewOnlineStats returns a new instance of OnlineStats

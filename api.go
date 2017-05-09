@@ -62,7 +62,6 @@ func (bd *BinData) Raw(refMap map[uint32]string) []Bin {
 		position = 0
 
 		if chromName, found = refMap[uint32(refID)]; !found {
-			position += internal.TileWidth
 			continue
 		}
 

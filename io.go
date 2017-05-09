@@ -2,9 +2,11 @@ package binest
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"unsafe"
@@ -47,17 +49,58 @@ func detectIndex(idxPath string) (string, IndexType) {
 	}
 }
 
-// GetRefMap returns map[uint32]string from the reference FAI path
-func GetRefMap(faiPath string) (map[uint32]string, error) {
-	fh, err := os.Open(faiPath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Error opening FAI: %s", faiPath)
+// getBamPath gets the BAM path given it's index
+func getBamPath(idxPath string) (string, error) {
+	prefix := idxPath[:len(idxPath)-4]
+
+	if _, err := os.Stat(prefix); err == nil {
+		return prefix, nil
+	} else if _, err := os.Stat(prefix + ".bam"); err == nil {
+		return prefix + ".bam", nil
 	}
+
+	return "", fmt.Errorf("Couldn't find BAM file for %s", idxPath)
+}
+
+// getRefMapBamIdx gets the reference index map from BAM header
+func getRefMapBamIdx(bamIdxPath string) (map[uint32]string, error) {
+	bamPath, err := getBamPath(bamIdxPath)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Couldn't auto-detect reference index from BAM")
+	}
+
+	bamFh, err := os.Open(bamPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error opening BAM header: %s", bamPath)
+	}
+
+	bamRdr, err := bam.NewReader(bufio.NewReader(bamFh), runtime.GOMAXPROCS(0))
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error opening BAM header: %s", bamPath)
+	}
+
+	defer bamFh.Close()
+	defer bamRdr.Close()
+
+	refMap := make(map[uint32]string, len(bamRdr.Header().Refs()))
+	for _, ref := range bamRdr.Header().Refs() {
+		refMap[uint32(ref.ID())] = ref.Name()
+	}
+	return refMap, nil
+}
+
+// getRefMapFaiIdx gets the reference index map from FAI index
+func getRefMapFaiIdx(faiIdxPath string) (map[uint32]string, error) {
+	fh, err := os.Open(faiIdxPath)
 	defer fh.Close()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error opening FAI: %s", faiIdxPath)
+	}
 
 	faiIdx, err := fai.ReadFrom(bufio.NewReader(fh))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error reading FAI: %s", faiPath)
+		return nil, errors.Wrapf(err, "Error reading FAI: %s", faiIdxPath)
 	}
 
 	faiRecords := make([]fai.Record, 0, len(faiIdx))
@@ -75,6 +118,22 @@ func GetRefMap(faiPath string) (map[uint32]string, error) {
 	}
 
 	return refMap, nil
+}
+
+// GetRefMap returns map[uint32]string from the reference FAI path
+func GetRefMap(faiPath string, idxPath string) (map[uint32]string, error) {
+	// if not FAI index provided and working with a TABIX index, bail out immediately
+	if faiPath == "" && !strings.HasSuffix(idxPath, ".bai") {
+		return nil, errors.New("Need FAI reference index for TABIX indexes")
+	}
+
+	// if no FAI index provided and working with a BAM index
+	if faiPath == "" {
+		return getRefMapBamIdx(idxPath)
+	}
+
+	// FAI index provided and working with either BAM/TABIX index
+	return getRefMapFaiIdx(idxPath)
 }
 
 // baiRefIdxs returns the slice of reference indexes from a BAI index
