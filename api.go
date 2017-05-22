@@ -213,7 +213,7 @@ func NewBinData(idxPath string) (*BinData, error) {
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Error unknown index type")
+		return nil, err
 	}
 
 	cache := make(map[string][]Bin, 2)
