@@ -37,7 +37,14 @@ func vOffset(o bgzf.Offset) int64 {
 
 // detectIndex returns the sample name and indexType from index path
 func detectIndex(idxPath string) (string, IndexType) {
-	sampleName := strings.SplitN(filepath.Base(idxPath), ".", 2)[0]
+	suffixes := []string{".final.bam.bai", ".final.bai", ".bam.bai", ".bai", ".vcf.gz.tbi"}
+	basename := filepath.Base(idxPath)
+
+	// recursively trim possible suffixes to get sample name
+	sampleName := strings.TrimSuffix(basename, suffixes[0])
+	for _, suff := range suffixes[1:] {
+		sampleName = strings.TrimSuffix(sampleName, suff)
+	}
 
 	switch filepath.Ext(idxPath) {
 	case ".bai":
