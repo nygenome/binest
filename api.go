@@ -3,6 +3,7 @@ package binest
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -58,10 +59,16 @@ func (bd *BinData) Raw(refMap map[uint32]string) []Bin {
 		chromName string
 	)
 
+	excludeChroms := regexp.MustCompile("^GL|^chrUn|^chrEBV|^HLA-|_random$|_alt$|_decoy$")
+
 	for refID, refBins := range bd.binSizes {
 		position = 0
 
 		if chromName, found = refMap[uint32(refID)]; !found {
+			continue
+		}
+
+		if excludeChroms.MatchString(chromName) {
 			continue
 		}
 
