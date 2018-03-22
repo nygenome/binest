@@ -181,9 +181,15 @@ func (bd *BinData) DetectSex(ploidy uint, refMap map[uint32]string) SexEstimate 
 	for _, c := range copies {
 		if strings.HasSuffix(c.Ref, "X") {
 			xCopy, xNorm = c.Est, c.Norm
+			if xCopy > uint32(4) {
+				xCopy = uint32(4)
+			}
 		}
 		if strings.HasSuffix(c.Ref, "Y") {
 			yCopy, yNorm = c.Est, c.Norm
+			if yCopy > uint32(4) {
+				yCopy = uint32(4)
+			}
 		}
 	}
 
