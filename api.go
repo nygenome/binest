@@ -88,14 +88,21 @@ func (bd *BinData) Raw(refMap map[uint32]string) []Bin {
 }
 
 // medianBinSize returns the median size of all bins in the sample
-func (bd *BinData) medianBinSize() float64 {
-	tmpMerged := make([]int64, 0, 200000)
+func (bd *BinData) medianBinSize(refMap map[uint32]string) float64 {
+	rawBins := bd.Raw(refMap)
+	tmp := make([]float64, 0, len(rawBins))
 
-	for i := 0; i < len(bd.binSizes); i++ {
-		tmpMerged = append(tmpMerged, bd.binSizes[i]...)
+	// ignore sex chromosomes for median size calculations
+	ignoreChroms := regexp.MustCompile("^X$|^Y$|^chrX$|^chrY$")
+
+	for i := 0; i < len(rawBins); i++ {
+		if ignoreChroms.MatchString(rawBins[i].Ref) {
+			continue
+		}
+		tmp = append(tmp, rawBins[i].Size)
 	}
 
-	return medianI64(tmpMerged)
+	return medianF64(tmp)
 }
 
 // Normalized returns the normalized bins for the sample
@@ -105,7 +112,7 @@ func (bd *BinData) Normalized(refMap map[uint32]string) []Bin {
 	}
 
 	bins := make([]Bin, 0, 200000)
-	medianSize := bd.medianBinSize()
+	medianSize := bd.medianBinSize(refMap)
 
 	var (
 		found     bool
