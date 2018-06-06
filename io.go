@@ -10,12 +10,12 @@ import (
 	"sort"
 	"strings"
 	"unsafe"
+	"errors"
 
 	"github.com/biogo/biogo/io/seqio/fai"
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/tabix"
-	"github.com/pkg/errors"
 
 	"github.com/omicsnut/binest/internal"
 )
@@ -66,7 +66,7 @@ func getBamPath(idxPath string) (string, error) {
 		return prefix + ".bam", nil
 	}
 
-	return "", fmt.Errorf("Couldn't find BAM file for %s", idxPath)
+	return "", fmt.Errorf("couldn't find BAM file for %s", idxPath)
 }
 
 // getRefMapBamIdx gets the reference index map from BAM header
@@ -74,17 +74,17 @@ func getRefMapBamIdx(bamIdxPath string) (map[uint32]string, error) {
 	bamPath, err := getBamPath(bamIdxPath)
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "Couldn't auto-detect reference index from BAM")
+		return nil, err
 	}
 
 	bamFh, err := os.Open(bamPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error opening BAM header: %s", bamPath)
+		return nil, err
 	}
 
 	bamRdr, err := bam.NewReader(bufio.NewReader(bamFh), runtime.GOMAXPROCS(0))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error opening BAM header: %s", bamPath)
+		return nil, err
 	}
 
 	defer bamFh.Close()
@@ -102,12 +102,12 @@ func getRefMapFaiIdx(faiIdxPath string) (map[uint32]string, error) {
 	fh, err := os.Open(faiIdxPath)
 	defer fh.Close()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error opening FAI: %s", faiIdxPath)
+		return nil, err
 	}
 
 	faiIdx, err := fai.ReadFrom(bufio.NewReader(fh))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error reading FAI: %s", faiIdxPath)
+		return nil, err
 	}
 
 	faiRecords := make([]fai.Record, 0, len(faiIdx))
@@ -131,7 +131,7 @@ func getRefMapFaiIdx(faiIdxPath string) (map[uint32]string, error) {
 func GetRefMap(faiPath string, idxPath string) (map[uint32]string, error) {
 	// if not FAI index provided and working with a TABIX index, bail out immediately
 	if faiPath == "" && !strings.HasSuffix(idxPath, ".bai") {
-		return nil, errors.New("Need FAI reference index for TABIX indexes")
+		return nil, errors.New("need FAI reference index for TABIX indexes")
 	}
 
 	// if no FAI index provided and working with a BAM index
@@ -147,13 +147,13 @@ func GetRefMap(faiPath string, idxPath string) (map[uint32]string, error) {
 func baiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 	fh, err := os.Open(idxPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error open BAI: %s", idxPath)
+		return nil, err
 	}
 	defer fh.Close()
 
 	idx, err := bam.ReadIndex(bufio.NewReader(fh))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error reading BAI: %s", idxPath)
+		return nil, err
 	}
 
 	idxRefs := reflect.ValueOf(*idx).FieldByName("idx").FieldByName("Refs")
@@ -167,18 +167,18 @@ func baiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 func tbiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 	fh, err := os.Open(idxPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error opening TBI: %s", idxPath)
+		return nil, err
 	}
 	defer fh.Close()
 
 	tbxRdr, err := bgzf.NewReader(bufio.NewReader(fh), 2)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error reading TBI: %s", idxPath)
+		return nil, err
 	}
 
 	idx, err := tabix.ReadFrom(tbxRdr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error reading TBI: %s", idxPath)
+		return nil, err
 	}
 
 	idxRefs := reflect.ValueOf(*idx).FieldByName("idx").FieldByName("Refs")
