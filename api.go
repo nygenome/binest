@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/omicsnut/binest/internal"
-	"github.com/pkg/errors"
 )
 
 // BinData holds the binSizes, RefMap and Name of one sample
@@ -59,7 +58,8 @@ func (bd *BinData) Raw(refMap map[uint32]string) []Bin {
 		chromName string
 	)
 
-	excludeChroms := regexp.MustCompile("^GL|^chrUn|^chrEBV|^HLA-|_random$|_alt$|_decoy$")
+	// ignore MT, alt and decoy contigs
+	excludeChroms := regexp.MustCompile("^MT$|^chrMT$|^GL|^chrUn|^chrEBV|^HLA-|_random$|_alt$|_decoy$")
 
 	for refID, refBins := range bd.binSizes {
 		position = 0
@@ -229,7 +229,7 @@ func NewBinData(idxPath string) (*BinData, error) {
 	case TBI:
 		rIdxs, err = tbiRefIdxs(idxPath)
 	default:
-		err = errors.Errorf("index file %s must be a .bai or .tbi", idxPath)
+		err = fmt.Errorf("index file %s must be a .bai or .tbi", idxPath)
 	}
 
 	if err != nil {
