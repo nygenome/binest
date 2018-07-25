@@ -100,10 +100,10 @@ func getRefMapBamIdx(bamIdxPath string) (map[uint32]string, error) {
 // getRefMapFaiIdx gets the reference index map from FAI index
 func getRefMapFaiIdx(faiIdxPath string) (map[uint32]string, error) {
 	fh, err := os.Open(faiIdxPath)
-	defer fh.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer fh.Close()
 
 	faiIdx, err := fai.ReadFrom(bufio.NewReader(fh))
 	if err != nil {

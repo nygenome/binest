@@ -37,7 +37,7 @@ func runChromCopy(idxPaths <-chan string, finished chan<- bool, faiPath string, 
 			}
 
 			copies := bd.Copies(ploidy, refs)
-			results <- sampleChromCopy{bd.Name, copies}
+			results <- sampleChromCopy{name: bd.Name, copies: copies}
 
 		}(idxPath, sampleChromCopies)
 
