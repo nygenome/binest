@@ -8,7 +8,7 @@ import (
 
 	"github.com/remeh/sizedwaitgroup"
 
-	"github.com/omicsnut/binest"
+	"git.nygenome.org/rmusunuri/binest"
 )
 
 // runChromCopy is the command line interface for binest ploidy

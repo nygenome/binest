@@ -5,8 +5,9 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/omicsnut/binest"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	"git.nygenome.org/rmusunuri/binest"
 )
 
 func main() {

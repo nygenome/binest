@@ -36,6 +36,15 @@
   version = "v1.0.1"
 
 [[projects]]
+  name = "github.com/omicsnut/binest"
+  packages = [
+    ".",
+    "internal"
+  ]
+  revision = "9cb40fc2b18403bf0a990271613ea4ebdc6c9071"
+  version = "v0.4.2"
+
+[[projects]]
   branch = "master"
   name = "github.com/remeh/sizedwaitgroup"
   packages = ["."]
@@ -50,6 +59,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7b1417a7b84000dc55da3a236b4b7d79dac54f3aa9f5f8e454bdf216413820b1"
+  inputs-digest = "8b3b15d306a4e504986ea3b7c4391fe5048a514e6fa10d6ef11463eeba65d71c"
   solver-name = "gps-cdcl"
   solver-version = 1

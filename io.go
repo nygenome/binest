@@ -2,6 +2,7 @@ package binest
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,14 +11,13 @@ import (
 	"sort"
 	"strings"
 	"unsafe"
-	"errors"
 
 	"github.com/biogo/biogo/io/seqio/fai"
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/tabix"
 
-	"github.com/omicsnut/binest/internal"
+	"git.nygenome.org/rmusunuri/binest/internal"
 )
 
 // IndexType is the type of the index
