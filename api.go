@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/omicsnut/binest/internal"
+	"git.nygenome.org/rmusunuri/binest/internal"
 )
 
 // BinData holds the binSizes, RefMap and Name of one sample
