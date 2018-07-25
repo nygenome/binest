@@ -72,7 +72,7 @@ linux64: dep_ensure packr_gen ## Builds a snifty executable for linux/amd64 in b
 .PHONY: osx64
 osx64: dep_ensure packr_gen ## Builds a snifty executable for osx/amd64 in bin
 	@echo "+ $@"
-	@GOOS=osx GOARCH=amd64 go build -o bin/$(TARGET)_osx64 $(LDFLAGS) cmd/*.go
+	@GOOS=darwin GOARCH=amd64 go build -o bin/$(TARGET)_osx64 $(LDFLAGS) cmd/*.go
 	@$(packr) clean
 
 .PHONY: win64
