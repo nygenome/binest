@@ -76,5 +76,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprintf(os.Stderr, "deployed snifty version %s to gitlab\n", *versionPtr)
+	fmt.Fprintf(os.Stderr, "deployed binest version %s to gitlab\n", *versionPtr)
 }
