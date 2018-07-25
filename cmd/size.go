@@ -43,9 +43,9 @@ func runSize(idxPaths <-chan string, finished chan<- bool, faiPath string, raw b
 			}
 
 			if raw {
-				results <- sampleSize{bd.Name, bd.Raw(refs)}
+				results <- sampleSize{name: bd.Name, sizes: bd.Raw(refs)}
 			} else {
-				results <- sampleSize{bd.Name, bd.Normalized(refs)}
+				results <- sampleSize{name: bd.Name, sizes: bd.Normalized(refs)}
 			}
 
 		}(idxPath, sampleSizes)

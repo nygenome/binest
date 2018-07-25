@@ -162,7 +162,7 @@ func (bd *BinData) Copies(ploidy uint, refMap map[uint32]string) []RefCopy {
 	for _, b := range normBins {
 		if b.Ref != prevRef {
 			normCopy = float64(ploidy) * medianF64(refSizes)
-			copies = append(copies, RefCopy{prevRef, roundChromSize(normCopy), normCopy})
+			copies = append(copies, RefCopy{Ref: prevRef, Est: roundChromSize(normCopy), Norm: normCopy})
 			refSizes = make([]float64, 0, 200000)
 		}
 		refSizes = append(refSizes, b.Size)
@@ -211,7 +211,15 @@ func (bd *BinData) DetectSex(ploidy uint, refMap map[uint32]string) SexEstimate 
 		gender = "unknown"
 	}
 
-	return SexEstimate{bd.Name, gender, sexGT, xCopy, yCopy, xNorm, yNorm}
+	return SexEstimate{
+		Name:   bd.Name,
+		Gender: gender,
+		SexGT:  sexGT,
+		XCopy:  xCopy,
+		YCopy:  yCopy,
+		XNorm:  xNorm,
+		YNorm:  yNorm,
+	}
 }
 
 // NewBinData returns BinData given path to a BAI/TBI and reference FAI index
@@ -238,7 +246,7 @@ func NewBinData(idxPath string) (*BinData, error) {
 
 	cache := make(map[string][]Bin, 2)
 
-	return &BinData{name, idxType, binSizes(rIdxs), cache}, nil
+	return &BinData{Name: name, IdxType: idxType, binSizes: binSizes(rIdxs), cache: cache}, nil
 }
 
 // String implements the fmt.Stringer interface for SexEstimate

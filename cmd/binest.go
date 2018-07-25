@@ -10,11 +10,16 @@ import (
 	"git.nygenome.org/rmusunuri/binest"
 )
 
+var (
+	buildTime = ""
+	gitCommit = ""
+)
+
 func main() {
 
 	var (
 		desc  = "Estimate chromcopy, sex and size from BAI/TBI index bins."
-		app   = kingpin.New("binest", desc).Version(fmt.Sprintf("binest v%s", binest.Version))
+		app   = kingpin.New("binest", desc).Version(fmt.Sprintf("binest %s", binest.Version))
 		fai   = app.Flag("fai", "path to reference FAI index.").Short('f').ExistingFile()
 		procs = app.Flag("cores", "number of cores to use.").Short('c').Default("1").Uint()
 
@@ -38,6 +43,11 @@ func main() {
 	doneChan := make(chan bool, 1)
 
 	runtime.GOMAXPROCS(int(*procs))
+	fmt.Fprintf(os.Stderr, `binest %s
+build time: %s
+git commit: %s
+
+`, binest.Version, buildTime, gitCommit)
 
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 	case "chromcopy":
