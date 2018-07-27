@@ -34,8 +34,8 @@
   version = "1.0.1"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/remeh/sizedwaitgroup"
+  name = "github.com/pkg/errors"
+  version = "0.8.0"
 
 [[constraint]]
   name = "github.com/subosito/gotenv"
@@ -48,6 +48,10 @@
 [[constraint]]
   name = "gopkg.in/alecthomas/kingpin.v2"
   version = "2.2.6"
+
+[[constraint]]
+  name = "gopkg.in/src-d/go-errors.v1"
+  version = "1.0.0"
 
 [prune]
   go-tests = true

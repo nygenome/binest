@@ -1,9 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"os"
-	"runtime"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
@@ -11,78 +12,114 @@ import (
 )
 
 var (
-	buildTime = ""
-	gitCommit = ""
+	buildTime    = ""
+	gitCommit    = ""
+	errNoIndexes = errors.New("no indexes provided to process")
 )
 
 func main() {
+	version := fmt.Sprintf(`binest %s
+build time : %s
+git commit : %s
+`, binest.Version, buildTime, gitCommit)
 
-	var (
-		desc  = "Estimate chromcopy, sex and size from BAI/TBI index bins."
-		app   = kingpin.New("binest", desc).Version(fmt.Sprintf("binest %s", binest.Version))
-		fai   = app.Flag("fai", "path to reference FAI index.").Short('f').ExistingFile()
-		procs = app.Flag("cores", "number of cores to use.").Short('c').Default("1").Uint()
+	desc := "Estimate chromosome copy, sex and size from BAM/tabix index bins."
+	app := kingpin.New("binest", desc).Version(version)
 
-		chromcopy = app.Command("chromcopy", "Estimate per chromosome copy from one or more indexes (stdin or arguments).")
-		size      = app.Command("size", "Compute size across 16kb bins from one or more indexes (stdin or arguments).")
-		sex       = app.Command("sex", "Estimate sex genotype from one or more indexes (stdin or arguments).")
+	// application flags
+	fai := app.Flag("fai", "path to reference fasta index (*.fai).").Short('f').ExistingFile()
 
-		cIdxs  = chromcopy.Arg("index", "path to one or more indexes.").ExistingFiles()
-		szIdxs = size.Arg("index", "path to one or more indexes.").ExistingFiles()
-		sxIdxs = sex.Arg("index", "path to one or more indexes.").ExistingFiles()
+	// commands
+	chrCpy := app.Command("chromcopy", "Estimate per chromosome copy number for sample(s) given their indexes.")
+	size := app.Command("size", "Compute raw/normalized size for every 16kb window for sample(s) given their indexes.")
+	sex := app.Command("sex", "Estimate sex genotype for sample(s) given their indexes.")
 
-		szRaw   = size.Flag("raw", "output raw sizes without normalization.").Short('r').Default("false").Bool()
-		cPloidy = chromcopy.Flag("ploidy", "ploidy to use for per chromosome copy estimate.").Short('p').Default("2").Uint()
-		sPloidy = sex.Flag("ploidy", "ploidy to use for sex estimate.").Short('p').Default("2").Uint()
-	)
+	// indexes
+	cIdxs := chrCpy.Arg("index", "path to one or more index files.").ExistingFiles()
+	zIdxs := size.Arg("index", "path to one or more index files.").ExistingFiles()
+	xIdxs := sex.Arg("index", "path to one or more index files.").ExistingFiles()
+
+	// other command flags
+	cPloidy := chrCpy.Flag("ploidy", "base ploidy to use for chromosome copy estimate.").Default("2").Uint()
+	zRaw := size.Flag("raw", "out raw sizes without normalization.").Short('r').Default("false").Bool()
+	xPloidy := sex.Flag("ploidy", "base ploidy to use for sex genotype estimate.").Default("2").Uint()
 
 	app.HelpFlag.Short('h')
 	app.VersionFlag.Short('v')
 
 	indexes := make(chan string, 100)
+	errChan := make(chan error, 10)
 	doneChan := make(chan bool, 1)
 
-	runtime.GOMAXPROCS(int(*procs))
-	fmt.Fprintf(os.Stderr, `binest %s
-build time: %s
-git commit: %s
+	fmt.Fprintf(os.Stderr, "binest %s_%s_%s\n", binest.Version, buildTime, gitCommit)
 
-`, binest.Version, buildTime, gitCommit)
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
 
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 	case "chromcopy":
-		go runChromCopy(indexes, doneChan, *fai, *cPloidy)
-
-		if err := putIndexes(*cIdxs, indexes); err != nil {
-			fmt.Fprintln(os.Stderr, "No indexes provided for chromcopy estimate!")
-			app.Usage(os.Args[1:])
-			os.Exit(1)
-		}
-
-		close(indexes)
-		<-doneChan
+		go binest.RunChromCopy(indexes, errChan, doneChan, out, *fai, *cPloidy)
+		go streamIndexes(*cIdxs, indexes, errChan)
 	case "size":
-		go runSize(indexes, doneChan, *fai, *szRaw)
-
-		if err := putIndexes(*szIdxs, indexes); err != nil {
-			fmt.Fprintln(os.Stderr, "No indexes provided for size calculation!")
-			app.Usage(os.Args[1:])
-			os.Exit(1)
-		}
-
-		close(indexes)
-		<-doneChan
+		go binest.RunSize(indexes, errChan, doneChan, out, *fai, *zRaw)
+		go streamIndexes(*zIdxs, indexes, errChan)
 	case "sex":
-		go runSex(indexes, doneChan, *fai, *sPloidy)
-
-		if err := putIndexes(*sxIdxs, indexes); err != nil {
-			fmt.Fprintln(os.Stderr, "No indexes provided for sex estimate!")
-			app.Usage(os.Args[1:])
-			os.Exit(1)
-		}
-
-		close(indexes)
-		<-doneChan
+		go binest.RunSex(indexes, errChan, doneChan, out, *fai, *xPloidy)
+		go streamIndexes(*xIdxs, indexes, errChan)
 	}
 
+Loop:
+	for {
+		select {
+		case err := <-errChan:
+			if err == errNoIndexes {
+				fmt.Fprintln(os.Stderr, "No indexes provided to process!")
+				app.Usage(os.Args[1:])
+				os.Exit(1)
+			}
+			panic(err)
+		case <-doneChan:
+			close(errChan)
+			break Loop
+		}
+	}
+}
+
+func streamIndexes(args []string, idxsChan chan<- string, errChan chan<- error) {
+	gotInput := len(args) > 0
+
+	for _, arg := range args {
+		idxsChan <- arg
+	}
+
+	if hasStdin() {
+		scanner := bufio.NewScanner(os.Stdin)
+		gotInput = true
+		for scanner.Scan() {
+			idxsChan <- scanner.Text()
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintln(os.Stderr, "error reading data from stdin")
+			errChan <- err
+		}
+	}
+
+	if !gotInput {
+		errChan <- errNoIndexes
+	}
+
+	close(idxsChan)
+}
+
+// hasStdin checks if process can read from /dev/stdin
+func hasStdin() bool {
+	stat, err := os.Stdin.Stat()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error checking for data from stdin")
+		panic(err)
+	}
+	if stat.Mode()&os.ModeCharDevice == 0 {
+		return true
+	}
+	return false
 }
