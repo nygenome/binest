@@ -18,13 +18,13 @@ LDFLAGS=-ldflags "-w -X=$(PKG).Version=$(VERSION) -X=main.buildTime=$(BUILDTIME)
 SRC = $(shell find . -type f -not -path "./vendor/*" -and -name '*.go' -and -not -name '*.pb.go')
 
 TARGET := $(NAME)
-.DEFAULT_GOAL: $(TARGET)
+.DEFAULT_GOAL: bin/$(TARGET)
 
 .PHONY: all
 all: install
 
-$(TARGET): $(SRC)
-	@$(GO) build $(LDFLAGS) cmd/*.go
+bin/$(TARGET): $(SRC)
+	@$(GO) build $(LDFLAGS) -o bin/$(TARGET) cmd/*.go
 
 $(packr): ## Install packr to embed resources
 	@echo "+ $@"
@@ -58,7 +58,7 @@ packr_clean: $(packr) ## Remove and clean packr generated files
 	@$(packr) clean
 
 .PHONY: build
-build: lint dep_ensure packr_gen $(TARGET) ## Builds a snifty executable for current OS/Arch
+build: lint dep_ensure packr_gen bin/$(TARGET) ## Builds a snifty executable for current OS/Arch
 	@echo "+ $@"
 	@true
 	@$(packr) clean
