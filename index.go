@@ -93,9 +93,9 @@ func (i *Index) Sex(ploidy uint) *Sex {
 
 // Sizes estimates the raw/normalized per bin sizes for the given index
 func (i *Index) Sizes(rawSize bool) *Sizes {
-	chroms := make([]string, 0, 2000)
-	starts := make([][]uint64, 0, 2000)
-	rawBins := make([][]int64, 0, 2000)
+	chroms := make([]string, 0, len(*i.Bins))
+	starts := make([][]uint64, 0, len(*i.Bins))
+	rawBins := make([][]int64, 0, len(*i.Bins))
 
 	var (
 		position   uint64
@@ -114,10 +114,10 @@ func (i *Index) Sizes(rawSize bool) *Sizes {
 
 		chroms = append(chroms, chromName)
 		rawBins = append(rawBins, refBins)
-
-		starts[refID] = make([]uint64, len(refBins))
-		for idx := range refBins {
-			starts[refID][idx] = position
+		starts = append(starts, make([]uint64, len(refBins)))
+		startIdx := len(starts) - 1
+		for binIdx := range refBins {
+			starts[startIdx][binIdx] = position
 			position += internal.TileWidth
 		}
 	}
