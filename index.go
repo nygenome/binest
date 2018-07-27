@@ -73,6 +73,13 @@ func (i *Index) Sex(ploidy uint) *Sex {
 	}
 
 	sexGT = strings.Repeat("X", int(xCopy)) + strings.Repeat("Y", int(yCopy))
+	if len(sexGT) == 1 && int(yCopy) == 0 {
+		sexGT = "XO"
+	}
+	if len(sexGT) == 1 && int(xCopy) == 0 {
+		sexGT = "OY"
+	}
+
 	switch sexGT {
 	case "XX":
 		gender = "female"
