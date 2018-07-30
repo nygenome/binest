@@ -57,7 +57,7 @@ git commit : %s
 	errChan := make(chan error, 10)
 	doneChan := make(chan bool, 1)
 
-	fmt.Fprintln(os.Stderr, version)
+	fmt.Fprint(os.Stderr, version)
 
 	out := bufio.NewWriter(os.Stdout)
 	defer out.Flush()
