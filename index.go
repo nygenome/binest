@@ -3,7 +3,6 @@ package binest
 import (
 	"path/filepath"
 	"regexp"
-
 	"strings"
 
 	"git.nygenome.org/rmusunuri/binest/internal"
@@ -153,7 +152,7 @@ func NewIndex(idxPath, faiPath string) (*Index, error) {
 		return nil, err
 	}
 
-	bins, err := ReadBins(idxPath)
+	bins, err := ReadBins(idxPath, refmap.GenomeBuild())
 	if err != nil {
 		return nil, err
 	}

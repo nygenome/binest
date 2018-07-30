@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"sort"
 
+	"strings"
+
 	"github.com/biogo/biogo/io/seqio/fai"
 	"github.com/biogo/hts/bam"
 	"github.com/pkg/errors"
@@ -14,6 +16,19 @@ import (
 
 // RefMap holds a mapping of ref idx to ref name
 type RefMap map[int]string
+
+// GenomeBuild detects the genome build for the reference
+func (r *RefMap) GenomeBuild() string {
+	for _, refName := range *r {
+		if excludeChroms.MatchString(refName) {
+			continue
+		}
+		if strings.HasSuffix(refName, "chr") {
+			return "b38"
+		}
+	}
+	return "b37"
+}
 
 // ReadRefMap reads a refmap given the index path and optionally path to fasta index
 // For BAI indexes - it first looks for the matching bam for the BAI, falling back to FAI
