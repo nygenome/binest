@@ -47,16 +47,22 @@ git commit : %s
 	app.HelpFlag.Short('h')
 	app.VersionFlag.Short('v')
 
+	cmd, err := app.Parse(os.Args[1:])
+	if err != nil {
+		app.Usage(os.Args[1:])
+		os.Exit(1)
+	}
+
 	indexes := make(chan string, 100)
 	errChan := make(chan error, 10)
 	doneChan := make(chan bool, 1)
 
-	fmt.Fprintf(os.Stderr, "binest %s_%s_%s\n", binest.Version, buildTime, gitCommit)
+	fmt.Fprintln(os.Stderr, version)
 
 	out := bufio.NewWriter(os.Stdout)
 	defer out.Flush()
 
-	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
+	switch kingpin.MustParse(cmd, err) {
 	case "chromcopy":
 		go binest.RunChromCopy(indexes, errChan, doneChan, out, *fai, *cPloidy)
 		go streamIndexes(*cIdxs, indexes, errChan)
