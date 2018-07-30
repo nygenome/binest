@@ -2,7 +2,9 @@ package binest
 
 import (
 	"math"
+	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // roundChromSize returns the rounded copy number from the nomalized chrom size.
@@ -95,4 +97,14 @@ func meanF64(arr []float64) (mean float64) {
 	}
 	mean = sum / float64(len(arr))
 	return mean
+}
+
+// stripKnownSuffixes strips known index suffixes to get sample name
+func stripKnownSuffixes(path string) string {
+	suffixes := []string{".final.bam.bai", ".final.bai", ".bam.bai", ".bai", ".vcf.gz.tbi"}
+	out := filepath.Base(path)
+	for _, suff := range suffixes {
+		out = strings.TrimSuffix(out, suff)
+	}
+	return out
 }
