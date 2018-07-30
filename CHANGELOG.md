@@ -2,6 +2,12 @@
 ## [Unreleased]
 
 
+<a name="v0.6.2"></a>
+## [v0.6.2] - 2018-07-30
+### Bug Fixes
+- strip known suffixes to try to get sample name, also maintains compatibility with older versions
+
+
 <a name="v0.6.1"></a>
 ## [v0.6.1] - 2018-07-30
 ### Bug Fixes
@@ -9,6 +15,7 @@
 - remove dep ensure from all target
 
 ### Code Maintenance
+- Bump version to v0.6.1
 - fix changes due to dep v0.4 and v0.5 clash. use v0.5
 - fix changes to dep lock. pin to dep v0.5.x
 
@@ -75,7 +82,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.1...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.2...HEAD
+[v0.6.2]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.1...v0.6.2
 [v0.6.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.4.4...v0.5.0
