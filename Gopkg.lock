@@ -36,6 +36,12 @@
   version = "v1.0.1"
 
 [[projects]]
+  name = "github.com/gobuffalo/packr"
+  packages = ["."]
+  revision = "9e76dbe10b00dd1fa8f29cfa4fac72297beb32a4"
+  version = "v1.12.1"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
@@ -72,7 +78,7 @@
     "context",
     "context/ctxhttp"
   ]
-  revision = "3673e40ba22529d22c3fd7c93e97b0ce50fa7bdd"
+  revision = "c4299a1a0d8524c11563db160fbf9bddbceadb21"
 
 [[projects]]
   branch = "master"
@@ -112,6 +118,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f1c0cfcc7fa6520a61595989aae9449efdb2cd8df230c83dc4d0ea75897b38e3"
+  inputs-digest = "13a06554decf638f8e3bb405532c2c714e8b53a9236367caa18baaa50011c96e"
   solver-name = "gps-cdcl"
   solver-version = 1
