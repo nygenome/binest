@@ -119,13 +119,18 @@ func (i *Index) Sizes(rawSize bool) *Sizes {
 		}
 
 		chroms = append(chroms, chromName)
-		rawBins = append(rawBins, refBins)
-		starts = append(starts, make([]uint64, len(refBins)))
-		startIdx := len(starts) - 1
-		for binIdx := range refBins {
-			starts[startIdx][binIdx] = position
+		currBins := make([]int64, 0, len(refBins))
+		currStarts := make([]uint64, 0, len(refBins))
+		for _, binSize := range refBins {
+			if binSize > 0 {
+				currBins = append(currBins, binSize)
+				currStarts = append(currStarts, position)
+			}
 			position += internal.TileWidth
 		}
+
+		rawBins = append(rawBins, currBins)
+		starts = append(starts, currStarts)
 	}
 
 	data := &Sizes{
