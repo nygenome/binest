@@ -21,7 +21,7 @@ TARGET := $(NAME)
 .DEFAULT_GOAL: bin/$(TARGET)
 
 .PHONY: all
-all: install
+all: lint dep_ensure install
 
 bin/$(TARGET): $(SRC)
 	@$(GO) build $(LDFLAGS) -o bin/$(TARGET) cmd/binest.go
@@ -58,25 +58,25 @@ packr_clean: $(packr) ## Remove and clean packr generated files
 	@$(packr) clean
 
 .PHONY: build
-build: lint dep_ensure packr_gen bin/$(TARGET) ## Builds a snifty executable for current OS/Arch
+build: packr_gen bin/$(TARGET) ## Builds a snifty executable for current OS/Arch
 	@echo "+ $@"
 	@true
 	@$(packr) clean
 
 .PHONY: linux64
-linux64: dep_ensure packr_gen ## Builds a snifty executable for linux/amd64 in bin
+linux64: packr_gen ## Builds a snifty executable for linux/amd64 in bin
 	@echo "+ $@"
 	@GOOS=linux GOARCH=amd64 go build -o bin/$(TARGET)_linux64 $(LDFLAGS) cmd/binest.go
 	@$(packr) clean
 
 .PHONY: osx64
-osx64: dep_ensure packr_gen ## Builds a snifty executable for osx/amd64 in bin
+osx64: packr_gen ## Builds a snifty executable for osx/amd64 in bin
 	@echo "+ $@"
 	@GOOS=darwin GOARCH=amd64 go build -o bin/$(TARGET)_osx64 $(LDFLAGS) cmd/binest.go
 	@$(packr) clean
 
 .PHONY: win64
-win64: dep_ensure packr_gen ## Builds a snifty executable for linux/amd64 in bin
+win64: packr_gen ## Builds a snifty executable for linux/amd64 in bin
 	@echo "+ $@"
 	@GOOS=windows GOARCH=amd64 go build -o bin/$(TARGET)_win64.exe $(LDFLAGS) cmd/binest.go
 	@$(packr) clean
@@ -96,7 +96,7 @@ clean: $(packr) ## Cleanup built and installed binaries
 	@$(packr) clean
 
 .PHONY: install
-install: lint dep_ensure packr_gen ## Installs the snifty executable in $GOBIN
+install: packr_gen ## Installs the snifty executable in $GOBIN
 	@echo "+ $@"
 	@$(GO) install $(LDFLAGS) cmd/binest.go
 	@$(packr) clean
