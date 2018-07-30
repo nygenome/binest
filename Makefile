@@ -21,7 +21,7 @@ TARGET := $(NAME)
 .DEFAULT_GOAL: bin/$(TARGET)
 
 .PHONY: all
-all: lint dep_ensure install
+all: lint install
 
 bin/$(TARGET): $(SRC)
 	@$(GO) build $(LDFLAGS) -o bin/$(TARGET) cmd/binest.go
