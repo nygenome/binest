@@ -53,19 +53,31 @@ type Sizes struct {
 	NormEsts [][]float64
 }
 
+// Normalize normalizes the raw sizes read from the index
+// It normalizes with the median of medians of per chromosome raw sizes.
+// i.e the median of (medians of each chromosome) is used.
 func (s *Sizes) Normalize() {
 	s.NormEsts = make([][]float64, len(s.Chroms))
 
-	vals := make([]int64, 0, 200000)
-	for _, refSizes := range s.RawSizes {
-		vals = append(vals, refSizes...)
+	// within chromosome normalize
+	perChromNorms := make([][]float64, len(s.Chroms))
+	vals := make([]float64, 0, 200000)
+	for refId, refSizes := range s.RawSizes {
+		refMedian := medianI64(refSizes)
+		perChromNorms[refId] = make([]float64, len(refSizes))
+		for idx, size := range refSizes {
+			norm := float64(size) / refMedian
+			perChromNorms[refId][idx] = norm
+			vals = append(vals, norm)
+		}
 	}
-	medianBinSize := medianI64(vals)
 
-	for refID, refSizes := range s.RawSizes {
+	// across chromosome normalize
+	normMedianBinSize := medianF64(vals)
+	for refID, refSizes := range perChromNorms {
 		s.NormEsts[refID] = make([]float64, len(refSizes))
-		for binIdx, binRawSize := range refSizes {
-			s.NormEsts[refID][binIdx] = float64(binRawSize) / medianBinSize
+		for binIdx, binSize := range refSizes {
+			s.NormEsts[refID][binIdx] = binSize / normMedianBinSize
 		}
 	}
 }
