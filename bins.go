@@ -2,6 +2,7 @@ package binest
 
 import (
 	"bufio"
+	"encoding/gob"
 	"os"
 	"reflect"
 	"unsafe"
@@ -9,10 +10,32 @@ import (
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/tabix"
+	"github.com/gobuffalo/packr"
 	"gopkg.in/src-d/go-errors.v1"
 
 	"git.nygenome.org/rmusunuri/binest/internal"
 )
+
+// ZeroBins holds all the bins which are predominantly zeros all the time
+// calculated from 1000 known male and female samples for both b37 and b38
+// Any bin where > 990 out of the 1000 samples are of zero size in both
+// male and female samples are used and embedded inside the binary.
+type ZeroBins map[string]map[int]map[int]bool
+
+var zeros ZeroBins
+
+func init() {
+	b := packr.NewBox("./resources")
+	fh, err := b.Open("refbins.zeros")
+	if err != nil {
+		panic(err)
+	}
+
+	dec := gob.NewDecoder(fh)
+	if err = dec.Decode(&zeros); err != nil {
+		panic(err)
+	}
+}
 
 // errUnsupprtedIndex is returned when trying to read an unknown/unsupported index
 var errUnsupprtedIndex = errors.NewKind("unknown/unsupported index: %s")
@@ -22,26 +45,26 @@ var errUnsupprtedIndex = errors.NewKind("unknown/unsupported index: %s")
 type Bins [][]int64
 
 // ReadBins reads the given index and returns its bin data
-func ReadBins(idxPath string) (*Bins, error) {
+func ReadBins(idxPath, build string) (*Bins, error) {
 	switch idxKind := DetectIndexKind(idxPath); idxKind {
 	case BaiIndex:
 		if refIdxs, err := baiRefIdxs(idxPath); err != nil {
 			return nil, err
 		} else {
-			return binSizes(refIdxs), nil
+			return binSizes(refIdxs, build), nil
 		}
 	case TbiIndex:
 		if refIdxs, err := tbiRefIdxs(idxPath); err != nil {
 			return nil, err
 		} else {
-			return binSizes(refIdxs), nil
+			return binSizes(refIdxs, build), nil
 		}
 	}
 	return nil, errUnsupprtedIndex.New(idxPath)
 }
 
 // binSizes returns sizes of all bins from the refIdxs
-func binSizes(refIdxs []internal.RefIndex) *Bins {
+func binSizes(refIdxs []internal.RefIndex, build string) *Bins {
 	bins := make(Bins, len(refIdxs))
 
 	for refNum, refIdx := range refIdxs {
@@ -52,6 +75,10 @@ func binSizes(refIdxs []internal.RefIndex) *Bins {
 
 		bins[refNum] = make([]int64, len(refIdx.Intervals)-1)
 		for binNum, intervalEnd := range refIdx.Intervals[1:] {
+			if isZero, found := zeros[build][refNum][binNum]; found && isZero {
+				continue
+			}
+
 			bins[refNum][binNum] = vOffset(intervalEnd) - vOffset(refIdx.Intervals[binNum])
 		}
 
