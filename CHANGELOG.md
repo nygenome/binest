@@ -2,6 +2,27 @@
 ## [Unreleased]
 
 
+<a name="v0.6.0"></a>
+## [v0.6.0] - 2018-07-30
+### Bug Fixes
+- fallback to old normalize method
+
+### Code Maintenance
+- simplify tasks, add default to all
+- fix changes due to dep v0.4 and v0.5 clash. use v0.5
+- remove extra newline
+- update dep lock file
+- parse command before using, remove always print version statement
+- update dep lock file
+
+### New Features
+- use multi step normalize, one within chromosome and one across chromosomes
+- skip and ignore bins which are always zero
+- add zero refbins resource file and update deps
+- detect reference build from refmap and use in creating index
+- add tool to build zero bins resource file
+
+
 <a name="v0.5.0"></a>
 ## [v0.5.0] - 2018-07-27
 ### Bug Fixes
@@ -9,6 +30,7 @@
 - preallocate the right slice length and append
 
 ### Code Maintenance
+- Bump version to v0.5.0
 - write build target in bin dir
 - update to dep version v0.5.0
 - fix to set package name
@@ -41,6 +63,7 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.5.0...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.0...HEAD
+[v0.6.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.4.4...v0.5.0
 [v0.4.4]: https://git.nygenome.org/rmusunuri/binest/compare/v0.4.3...v0.4.4
