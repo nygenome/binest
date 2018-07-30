@@ -3,26 +3,33 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:315c5f2f60c76d89b871c73f9bd5fe689cad96597afd50fb9992228ef80bdd34"
   name = "github.com/alecthomas/template"
   packages = [
     ".",
-    "parse"
+    "parse",
   ]
+  pruneopts = "UT"
   revision = "a0175ee3bccc567396460bf5acd36800cb10c49c"
 
 [[projects]]
   branch = "master"
+  digest = "1:c198fdc381e898e8fb62b8eb62758195091c313ad18e52a3067366e1dda2fb3c"
   name = "github.com/alecthomas/units"
   packages = ["."]
+  pruneopts = "UT"
   revision = "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
 
 [[projects]]
+  digest = "1:2ea6503abe830de97265f3be8f66efefa2a92b03e7a18f56a3f6213db1017dd6"
   name = "github.com/biogo/biogo"
   packages = ["io/seqio/fai"]
+  pruneopts = "UT"
   revision = "0f3e6a0d86d287fc9b1fdcbce89d730264f50024"
   version = "v1.0.1"
 
 [[projects]]
+  digest = "1:74328c739868437816a75a4c6ad60ad3a7a448450a222cb3574a71870b14737d"
   name = "github.com/biogo/hts"
   packages = [
     "bam",
@@ -30,66 +37,84 @@
     "bgzf/index",
     "internal",
     "sam",
-    "tabix"
+    "tabix",
   ]
+  pruneopts = "UT"
   revision = "71ed6f0cedb14828957509ab40af023760e71cb8"
   version = "v1.0.1"
 
 [[projects]]
+  digest = "1:2155aded3b7f51598751f556d9a524d92b35ad4aa4bb41f2d69a0f4ca76a5bfd"
   name = "github.com/gobuffalo/packr"
   packages = ["."]
+  pruneopts = "UT"
   revision = "9e76dbe10b00dd1fa8f29cfa4fac72297beb32a4"
   version = "v1.12.1"
 
 [[projects]]
+  digest = "1:15042ad3498153684d09f393bbaec6b216c8eec6d61f63dff711de7d64ed8861"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
+  pruneopts = "UT"
   revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
   version = "v1.1.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:a63cff6b5d8b95638bfe300385d93b2a6d9d687734b863da8e09dc834510a690"
   name = "github.com/google/go-querystring"
   packages = ["query"]
+  pruneopts = "UT"
   revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
 
 [[projects]]
+  digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
   name = "github.com/pkg/errors"
   packages = ["."]
+  pruneopts = "UT"
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
 
 [[projects]]
+  digest = "1:bb0d999fbfbc40f7bf42a24eca5e6894fa24a9efdad13d6908bea34bc3309722"
   name = "github.com/subosito/gotenv"
   packages = ["."]
+  pruneopts = "UT"
   revision = "69b5b6104433beb2cb9c3ce00bdadf3c7c2d3f34"
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:f0a751f9c93fde1a5810ad158a07d6fa1b4ee8a8f2f632488b0277a6e815befc"
   name = "github.com/xanzy/go-gitlab"
   packages = ["."]
+  pruneopts = "UT"
   revision = "4f616cbce6a5f335461881701f772d8b8e16c2f6"
   version = "v0.10.8"
 
 [[projects]]
   branch = "release-branch.go1.10"
+  digest = "1:d6b719875cf8091fbab38527d81d34e71f4521b9ee9ccfbd4a32cff2ac5af96e"
   name = "golang.org/x/net"
   packages = [
     "context",
-    "context/ctxhttp"
+    "context/ctxhttp",
   ]
+  pruneopts = "UT"
   revision = "0ed95abb35c445290478a5348a7b38bb154135fd"
 
 [[projects]]
   branch = "master"
+  digest = "1:af19f6e6c369bf51ef226e989034cd88a45083173c02ac4d7ab74c9a90d356b7"
   name = "golang.org/x/oauth2"
   packages = [
     ".",
-    "internal"
+    "internal",
   ]
+  pruneopts = "UT"
   revision = "3d292e4d0cdc3a0113e6d207bb137145ef1de42f"
 
 [[projects]]
+  digest = "1:328b5e4f197d928c444a51a75385f4b978915c0e75521f0ad6a3db976c97a7d3"
   name = "google.golang.org/appengine"
   packages = [
     "internal",
@@ -98,26 +123,42 @@
     "internal/log",
     "internal/remote_api",
     "internal/urlfetch",
-    "urlfetch"
+    "urlfetch",
   ]
+  pruneopts = "UT"
   revision = "b1f26356af11148e710935ed1ac8a7f5702c7612"
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:c06d9e11d955af78ac3bbb26bd02e01d2f61f689e1a3bce2ef6fb683ef8a7f2d"
   name = "gopkg.in/alecthomas/kingpin.v2"
   packages = ["."]
+  pruneopts = "UT"
   revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
   version = "v2.2.6"
 
 [[projects]]
+  digest = "1:48c5414d07b77e35a4c19f35e1c78d6a0cbdba6386005d0f8b7b86862d0ceca3"
   name = "gopkg.in/src-d/go-errors.v1"
   packages = ["."]
+  pruneopts = "UT"
   revision = "8bbbeeb767dfdd053b9b45d5a16a4f4ce2c6f694"
   version = "v1.0.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "13a06554decf638f8e3bb405532c2c714e8b53a9236367caa18baaa50011c96e"
+  input-imports = [
+    "github.com/biogo/biogo/io/seqio/fai",
+    "github.com/biogo/hts/bam",
+    "github.com/biogo/hts/bgzf",
+    "github.com/biogo/hts/tabix",
+    "github.com/gobuffalo/packr",
+    "github.com/pkg/errors",
+    "github.com/subosito/gotenv",
+    "github.com/xanzy/go-gitlab",
+    "gopkg.in/alecthomas/kingpin.v2",
+    "gopkg.in/src-d/go-errors.v1",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
