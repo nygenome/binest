@@ -12,7 +12,7 @@ func RunSize(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool,
 	if rawSize {
 		sizeString = "RAW_SIZE"
 	}
-	fmt.Fprintf(w, "CHROM\tSTART\tEND\t%s\tINDEX_USED\n", sizeString)
+	fmt.Fprintf(w, "CHROM\tSTART\tEND\t%s\tSAMPLE\n", sizeString)
 
 	for idxPath := range idxsChan {
 		idx, err := NewIndex(idxPath, faiPath)

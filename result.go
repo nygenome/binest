@@ -10,7 +10,7 @@ import (
 
 // ChromCopy holds the per chromosome copy estimate result for a single index
 type ChromCopy struct {
-	IdxUsed  string
+	Sample   string
 	Chroms   []string
 	CopyNums []uint8
 	NormEsts []float64
@@ -21,7 +21,7 @@ func (c *ChromCopy) String() string {
 
 	// header -> "index_used\tchrom\tcopy_estimate\tnormalized_estimate"
 	for idx, chrom := range c.Chroms {
-		lines[idx] = fmt.Sprintf("%s\t%s\t%d\t%s", c.IdxUsed, chrom, c.CopyNums[idx],
+		lines[idx] = fmt.Sprintf("%s\t%s\t%d\t%s", c.Sample, chrom, c.CopyNums[idx],
 			strconv.FormatFloat(c.NormEsts[idx], 'f', -1, 64))
 	}
 
@@ -30,7 +30,7 @@ func (c *ChromCopy) String() string {
 
 // Sex holds the sex genotype estimate result for a single index
 type Sex struct {
-	IdxUsed  string
+	Sample   string
 	Gender   string
 	Genotype string
 	NormXEst float64
@@ -39,14 +39,14 @@ type Sex struct {
 
 func (s *Sex) String() string {
 	// header -> "#index_used\testimated_gender\tsex_genotype\tnormalized_x_estimate\tnormalized_y_estimate"
-	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s", s.IdxUsed, s.Gender, s.Genotype,
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s", s.Sample, s.Gender, s.Genotype,
 		strconv.FormatFloat(s.NormXEst, 'f', -1, 64),
 		strconv.FormatFloat(s.NormYEst, 'f', -1, 64))
 }
 
 // Sizes holds the per window size size estimates result for a single index
 type Sizes struct {
-	IdxUsed  string
+	Sample   string
 	Chroms   []string
 	Starts   [][]uint64
 	RawSizes [][]int64
@@ -81,7 +81,7 @@ func (s *Sizes) String() string {
 			for binIdx, start := range s.Starts[refId] {
 				lines = append(lines, fmt.Sprintf("%s\t%d\t%d\t%s\t%s",
 					chrom, start, start+internal.TileWidth,
-					strconv.FormatFloat(s.NormEsts[refId][binIdx], 'f', -1, 64), s.IdxUsed))
+					strconv.FormatFloat(s.NormEsts[refId][binIdx], 'f', -1, 64), s.Sample))
 			}
 		}
 		return strings.Join(lines, "\n")
@@ -92,7 +92,7 @@ func (s *Sizes) String() string {
 	for refId, chrom := range s.Chroms {
 		for binIdx, start := range s.Starts[refId] {
 			lines = append(lines, fmt.Sprintf("%s\t%d\t%d\t%d\t%s",
-				chrom, start, start+internal.TileWidth, s.RawSizes[refId][binIdx], s.IdxUsed))
+				chrom, start, start+internal.TileWidth, s.RawSizes[refId][binIdx], s.Sample))
 		}
 	}
 

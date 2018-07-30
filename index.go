@@ -1,7 +1,6 @@
 package binest
 
 import (
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -16,7 +15,7 @@ var (
 type Index struct {
 	Bins   *Bins
 	RefMap *RefMap
-	SrcIdx string
+	Sample string
 }
 
 // ChromCopy estimates the per chomosome copy number for the given index
@@ -31,7 +30,7 @@ func (i *Index) ChromCopy(ploidy uint) *ChromCopy {
 	}
 
 	copies := ChromCopy{
-		IdxUsed:  i.SrcIdx,
+		Sample:   i.Sample,
 		Chroms:   normBins.Chroms,
 		CopyNums: estCopies,
 		NormEsts: normCopies,
@@ -89,7 +88,7 @@ func (i *Index) Sex(ploidy uint) *Sex {
 	}
 
 	return &Sex{
-		IdxUsed:  i.SrcIdx,
+		Sample:   i.Sample,
 		Gender:   gender,
 		Genotype: sexGT,
 		NormXEst: xNorm,
@@ -134,7 +133,7 @@ func (i *Index) Sizes(rawSize bool) *Sizes {
 	}
 
 	data := &Sizes{
-		IdxUsed:  i.SrcIdx,
+		Sample:   i.Sample,
 		Chroms:   chroms,
 		Starts:   starts,
 		RawSizes: rawBins,
@@ -151,7 +150,7 @@ func (i *Index) Sizes(rawSize bool) *Sizes {
 
 // NewIndex builds a new index given the path to index file and optionally path to reference fasta index.
 func NewIndex(idxPath, faiPath string) (*Index, error) {
-	srcbase := filepath.Base(idxPath)
+	sample := stripKnownSuffixes(idxPath)
 	refmap, err := ReadRefMap(idxPath, faiPath)
 	if err != nil {
 		return nil, err
@@ -162,5 +161,5 @@ func NewIndex(idxPath, faiPath string) (*Index, error) {
 		return nil, err
 	}
 
-	return &Index{Bins: bins, RefMap: refmap, SrcIdx: srcbase}, nil
+	return &Index{Bins: bins, RefMap: refmap, Sample: sample}, nil
 }
