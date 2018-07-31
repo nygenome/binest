@@ -57,12 +57,17 @@ type Sizes struct {
 func (s *Sizes) Normalize() {
 	s.NormEsts = make([][]float64, len(s.Chroms))
 
+	// Compute the autosomes byte size median
 	vals := make([]int64, 0, 200000)
-	for _, refSizes := range s.RawSizes {
+	for idx, refSizes := range s.RawSizes {
+		if s.Chroms[idx] == "X" || s.Chroms[idx] == "Y" || s.Chroms[idx] == "chrX" || s.Chroms[idx] == "chrY" {
+			continue
+		}
 		vals = append(vals, refSizes...)
 	}
 	medianBinSize := medianI64(vals)
 
+	// Normalize by dividing per bin byte size by autosomes byte size median
 	for refID, refSizes := range s.RawSizes {
 		s.NormEsts[refID] = make([]float64, len(refSizes))
 		for binIdx, binRawSize := range refSizes {
