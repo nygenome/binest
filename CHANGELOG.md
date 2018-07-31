@@ -2,10 +2,20 @@
 ## [Unreleased]
 
 
+<a name="v0.7.0"></a>
+## [v0.7.0] - 2018-07-31
+### New Features
+- use autosome byte size median and within chromosome median to compute chromosome copy estimate
+- use only autosomes to get median byte size for per bin normalization
+
+
 <a name="v0.6.2"></a>
 ## [v0.6.2] - 2018-07-30
 ### Bug Fixes
 - strip known suffixes to try to get sample name, also maintains compatibility with older versions
+
+### Code Maintenance
+- Bump version to v0.6.2
 
 
 <a name="v0.6.1"></a>
@@ -82,7 +92,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.2...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.7.0...HEAD
+[v0.7.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.2...v0.7.0
 [v0.6.2]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.1...v0.6.2
 [v0.6.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.5.0...v0.6.0
