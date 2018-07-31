@@ -82,7 +82,7 @@ win64: packr_gen ## Builds a snifty executable for linux/amd64 in bin
 	@$(packr) clean
 
 .PHONY: deploy
-deploy: clean lint dep_ensure packr_gen linux64 osx64 win64 packr_clean ### Builds and deploys linux64, osx64, win64 binaries to gitlab
+deploy: clean lint packr_gen linux64 osx64 win64 packr_clean ### Builds and deploys linux64, osx64, win64 binaries to gitlab
 	@echo "+ $@"
 	@$(GO) build -o bin/deploybot tools/deploybot.go
 	@bin/deploybot -version $(VERSION) -pid 214 bin/$(TARGET)_linux64 bin/$(TARGET)_osx64 bin/$(TARGET)_win64.exe
