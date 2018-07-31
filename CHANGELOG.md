@@ -4,6 +4,10 @@
 
 <a name="v0.7.0"></a>
 ## [v0.7.0] - 2018-07-31
+### Code Maintenance
+- comment out unused functions
+- Bump version to v0.7.0
+
 ### New Features
 - use autosome byte size median and within chromosome median to compute chromosome copy estimate
 - use only autosomes to get median byte size for per bin normalization
