@@ -20,18 +20,32 @@ type Index struct {
 
 // ChromCopy estimates the per chomosome copy number for the given index
 func (i *Index) ChromCopy(ploidy uint) *ChromCopy {
-	normBins := i.Sizes(false)
-	normCopies := make([]float64, len(normBins.Chroms))
-	estCopies := make([]uint8, len(normBins.Chroms))
+	rawBins := i.Sizes(true)
 
-	for refID := range normBins.Chroms {
-		normCopies[refID] = float64(ploidy) * medianF64(normBins.NormEsts[refID])
-		estCopies[refID] = roundChromSize(normCopies[refID])
+	// compute median byte size in autosomes
+	vals := make([]int64, 0, 200000)
+	for idx, refSizes := range rawBins.RawSizes {
+		if rawBins.Chroms[idx] == "X" || rawBins.Chroms[idx] == "Y" || rawBins.Chroms[idx] == "chrX" || rawBins.Chroms[idx] == "chrY" {
+			continue
+		}
+		vals = append(vals, refSizes...)
+	}
+	autoMedianSize := medianI64(vals)
+
+	normCopies := make([]float64, len(rawBins.Chroms))
+	estCopies := make([]uint8, len(rawBins.Chroms))
+
+	// divide per chromosome median byte size by the autosome
+	// median byte size to get approx. copy number for chrom.
+	for idx, refSizes := range rawBins.RawSizes {
+		refMedianSize := medianI64(refSizes)
+		normCopies[idx] = float64(ploidy) * refMedianSize / autoMedianSize
+		estCopies[idx] = roundChromSize(normCopies[idx])
 	}
 
 	copies := ChromCopy{
 		Sample:   i.Sample,
-		Chroms:   normBins.Chroms,
+		Chroms:   rawBins.Chroms,
 		CopyNums: estCopies,
 		NormEsts: normCopies,
 	}
@@ -41,7 +55,17 @@ func (i *Index) ChromCopy(ploidy uint) *ChromCopy {
 
 // Sex estimates the sex genotype for the given index
 func (i *Index) Sex(ploidy uint) *Sex {
-	normBins := i.Sizes(false)
+	rawBins := i.Sizes(true)
+
+	// compute median byte size in autosomes
+	vals := make([]int64, 0, 200000)
+	for idx, refSizes := range rawBins.RawSizes {
+		if rawBins.Chroms[idx] == "X" || rawBins.Chroms[idx] == "Y" || rawBins.Chroms[idx] == "chrX" || rawBins.Chroms[idx] == "chrY" {
+			continue
+		}
+		vals = append(vals, refSizes...)
+	}
+	autoMedianSize := medianI64(vals)
 
 	var (
 		xCopy  uint8
@@ -52,13 +76,17 @@ func (i *Index) Sex(ploidy uint) *Sex {
 		sexGT  string
 	)
 
-	for refID, chrom := range normBins.Chroms {
-		if strings.HasSuffix(chrom, "X") {
-			xNorm = float64(ploidy) * medianF64(normBins.NormEsts[refID])
+	// divide per chromosome median byte size by the autosome
+	// median byte size to get approx. copy number for chrom.
+	for idx, refSizes := range rawBins.RawSizes {
+		if rawBins.Chroms[idx] == "X" || rawBins.Chroms[idx] == "chrX" {
+			refMedianSize := medianI64(refSizes)
+			xNorm = float64(ploidy) * (refMedianSize / autoMedianSize)
 			xCopy = roundChromSize(xNorm)
 		}
-		if strings.HasSuffix(chrom, "Y") {
-			yNorm = float64(ploidy) * medianF64(normBins.NormEsts[refID])
+		if rawBins.Chroms[idx] == "Y" || rawBins.Chroms[idx] == "chrY" {
+			refMedianSize := medianI64(refSizes)
+			yNorm = float64(ploidy) * (refMedianSize / autoMedianSize)
 			yCopy = roundChromSize(yNorm)
 		}
 	}
