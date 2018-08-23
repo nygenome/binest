@@ -97,12 +97,11 @@ func (i *Index) Sex(ploidy uint) *Sex {
 	if yCopy > 3 {
 		yCopy = 3
 	}
+	sexGT = strings.Repeat("X", int(xCopy)) + strings.Repeat("Y", int(yCopy))
 	// When XO and yNorm is between 0.25 and 0.7, call "XO/XY"
 	if xCopy == 1 && yCopy == 0 && yNorm >= 0.25 && yNorm < 0.7 {
-		yCopy = 1
 		sexGT = "XO/XY"
 	}
-	sexGT = strings.Repeat("X", int(xCopy)) + strings.Repeat("Y", int(yCopy))
 
 	switch sexGT {
 	case "XX":
