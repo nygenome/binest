@@ -2,9 +2,16 @@
 ## [Unreleased]
 
 
+<a name="v0.8.2"></a>
+## [v0.8.2] - 2018-08-23
+### Bug Fixes
+- add case for XOs with lower than 0.25 yNorm
+
+
 <a name="v0.8.1"></a>
 ## [v0.8.1] - 2018-08-23
 ### Code Maintenance
+- Bump version to v0.8.1
 - fix ineffectual assignment
 
 
@@ -114,7 +121,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.1...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.2...HEAD
+[v0.8.2]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.1...v0.8.2
 [v0.8.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.0...v0.8.1
 [v0.8.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.2...v0.7.0
