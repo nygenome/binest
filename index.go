@@ -102,6 +102,9 @@ func (i *Index) Sex(ploidy uint) *Sex {
 	if xCopy == 1 && yCopy == 0 && yNorm >= 0.25 && yNorm < 0.7 {
 		sexGT = "XO/XY"
 	}
+	if len(sexGT) == 1 && yCopy == 0 {
+		sexGT = "XO"
+	}
 
 	switch sexGT {
 	case "XX":
