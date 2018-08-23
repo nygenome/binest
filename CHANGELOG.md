@@ -2,9 +2,16 @@
 ## [Unreleased]
 
 
+<a name="v0.8.1"></a>
+## [v0.8.1] - 2018-08-23
+### Code Maintenance
+- fix ineffectual assignment
+
+
 <a name="v0.8.0"></a>
 ## [v0.8.0] - 2018-08-23
 ### Code Maintenance
+- Bump version to v0.8.0
 - remove unused functions
 - remove dep ensure task from deploy
 
@@ -107,7 +114,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.0...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.1...HEAD
+[v0.8.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.0...v0.8.1
 [v0.8.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.2...v0.7.0
 [v0.6.2]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.1...v0.6.2
