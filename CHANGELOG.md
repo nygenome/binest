@@ -2,12 +2,14 @@
 ## [Unreleased]
 
 
-<a name="v0.8.3"></a>
-## [v0.8.3] - 2018-09-07
+<a name="v0.8.4"></a>
+## [v0.8.4] - 2018-09-07
 ### Bug Fixes
+- remove -s to prevent fail on gpg sign failure
 - typo in makefile
 
 ### Code Maintenance
+- Bump version to v0.8.3
 - add current version file
 - use git-chglog full binary path
 - disable gosec linter
@@ -139,8 +141,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.3...HEAD
-[v0.8.3]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.2...v0.8.3
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.4...HEAD
+[v0.8.4]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.2...v0.8.4
 [v0.8.2]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.1...v0.8.2
 [v0.8.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.0...v0.8.1
 [v0.8.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.7.0...v0.8.0
