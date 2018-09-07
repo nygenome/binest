@@ -13,7 +13,7 @@ GO := go
 dep := $(GOBIN)/dep
 packr := $(GOBIN)/packr
 sembump := $(GOBIN)/sembump
-git-chlog := $(GOBIN)/git-chlog
+git-chglog := $(GOBIN)/git-chglog
 LDFLAGS=-ldflags "-w -X=$(PKG).Version=$(VERSION) -X=main.buildTime=$(BUILDTIME) -X=main.gitCommit=$(GITCOMMIT)"
 SRC = $(shell find . -type f -not -path "./vendor/*" -and -name '*.go' -and -not -name '*.pb.go')
 
