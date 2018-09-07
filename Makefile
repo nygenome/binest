@@ -103,7 +103,7 @@ install: packr_gen ## Installs the snifty executable in $GOBIN
 
 bin/golangci-lint: ## Installs golangci-lint to run checks
 	@echo "+ $@"
-	@curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.9.1
+	@curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.10.2
 
 .PHONY: lint
 lint: bin/golangci-lint ## Verifies that various golangci-lint checks passes
