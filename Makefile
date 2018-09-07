@@ -121,7 +121,7 @@ bump: $(sembump) $(git-chlog) ### Bump version and tag new version. Set BUMP to 
 	$(eval NEW_VERSION = $(shell sembump --kind $(BUMP) $(VERSION)))
 	@echo "Bumping VERSION.txt from $(VERSION) to $(NEW_VERSION)"
 	@echo $(NEW_VERSION) > VERSION.txt
-	@git-chglog --next-tag $(NEW_VERSION) -o CHANGELOG.md
+	@$(git-chglog) --next-tag $(NEW_VERSION) -o CHANGELOG.md
 	git add VERSION.txt README.md CHANGELOG.md
 	git commit -vsam "chore: Bump version to $(NEW_VERSION)"
 	git tag -m "$(NAME) $(NEW_VERSION)" -sa $(NEW_VERSION)
