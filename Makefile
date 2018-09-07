@@ -28,7 +28,7 @@ bin/$(TARGET): $(SRC)
 
 $(packr): ## Install packr to embed resources
 	@echo "+ $@"
-	@$(GO) get github.com/gobuffalo/packr
+	@$(GO) get github.com/gobuffalo/packr/...
 
 $(dep): ## Install dep to install dependencies
 	@echo "+ $@"
