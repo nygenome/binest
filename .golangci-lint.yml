@@ -113,6 +113,8 @@ linters:
     - unconvert
     - dupl
     - goconst
+  disable:
+    - gosec
   enable-all: false
   disable-all: false
   presets:
