@@ -53,6 +53,51 @@ func (i *Index) ChromCopy(ploidy uint) *ChromCopy {
 	return &copies
 }
 
+func estimateSex(xNorm, yNorm float64) *Sex {
+	xCopy := roundChromSize(xNorm)
+	yCopy := roundChromSize(yNorm)
+
+	if xCopy > 3 {
+		xCopy = 3
+	}
+	if yCopy > 3 {
+		yCopy = 3
+	}
+
+	sexGT := strings.Repeat("X", int(xCopy)) + strings.Repeat("Y", int(yCopy))
+
+	// When XO and yNorm is < 0.25 and XNorm > 1.5, call "XX"
+	if xCopy == 1 && yCopy == 0 && yNorm < 0.25 && xNorm > 1.5 {
+		sexGT = "XX"
+	}
+
+	// When XO and yNorm is between 0.25 and 0.7, call "XO/XY"
+	if xCopy == 1 && yCopy == 0 && yNorm >= 0.25 && yNorm < 0.7 {
+		sexGT = "XO/XY"
+	}
+
+	if len(sexGT) == 1 && yCopy == 0 {
+		sexGT = "XO"
+	}
+
+	var gender string
+	switch sexGT {
+	case "XX":
+		gender = "female"
+	case "XY", "XO/XY":
+		gender = "male"
+	default:
+		gender = "unknown"
+	}
+
+	return &Sex{
+		Gender:   gender,
+		Genotype: sexGT,
+		NormXEst: xNorm,
+		NormYEst: yNorm,
+	}
+}
+
 // Sex estimates the sex genotype for the given index
 func (i *Index) Sex(ploidy uint) *Sex {
 	rawBins := i.Sizes(true)
@@ -68,12 +113,8 @@ func (i *Index) Sex(ploidy uint) *Sex {
 	autoMedianSize := medianI64(vals)
 
 	var (
-		xCopy  uint8
-		yCopy  uint8
-		xNorm  float64
-		yNorm  float64
-		gender string
-		sexGT  string
+		xNorm float64
+		yNorm float64
 	)
 
 	// divide per chromosome median byte size by the autosome
@@ -82,46 +123,16 @@ func (i *Index) Sex(ploidy uint) *Sex {
 		if rawBins.Chroms[idx] == "X" || rawBins.Chroms[idx] == "chrX" {
 			refMedianSize := medianI64(refSizes)
 			xNorm = float64(ploidy) * (refMedianSize / autoMedianSize)
-			xCopy = roundChromSize(xNorm)
 		}
 		if rawBins.Chroms[idx] == "Y" || rawBins.Chroms[idx] == "chrY" {
 			refMedianSize := medianI64(refSizes)
 			yNorm = float64(ploidy) * (refMedianSize / autoMedianSize)
-			yCopy = roundChromSize(yNorm)
 		}
 	}
 
-	if xCopy > 3 {
-		xCopy = 3
-	}
-	if yCopy > 3 {
-		yCopy = 3
-	}
-	sexGT = strings.Repeat("X", int(xCopy)) + strings.Repeat("Y", int(yCopy))
-	// When XO and yNorm is between 0.25 and 0.7, call "XO/XY"
-	if xCopy == 1 && yCopy == 0 && yNorm >= 0.25 && yNorm < 0.7 {
-		sexGT = "XO/XY"
-	}
-	if len(sexGT) == 1 && yCopy == 0 {
-		sexGT = "XO"
-	}
-
-	switch sexGT {
-	case "XX":
-		gender = "female"
-	case "XY", "XO/XY":
-		gender = "male"
-	default:
-		gender = "unknown"
-	}
-
-	return &Sex{
-		Sample:   i.Sample,
-		Gender:   gender,
-		Genotype: sexGT,
-		NormXEst: xNorm,
-		NormYEst: yNorm,
-	}
+	result := estimateSex(xNorm, yNorm)
+	result.Sample = i.Sample
+	return result
 }
 
 // Sizes estimates the raw/normalized per bin sizes for the given index
