@@ -118,7 +118,7 @@ test: ### Runs the go unit tests
 .PHONY: bump
 BUMP := patch
 bump: $(sembump) $(git-chlog) ### Bump version and tag new version. Set BUMP to [ patch | major | minor ]
-	$(eval NEW_VERSION = $(shell sembump --kind $(BUMP) $(VERSION)))
+	$(eval NEW_VERSION = $(shell $(sembump) --kind $(BUMP) $(VERSION)))
 	@echo "Bumping VERSION.txt from $(VERSION) to $(NEW_VERSION)"
 	@echo $(NEW_VERSION) > VERSION.txt
 	@$(git-chglog) --next-tag $(NEW_VERSION) -o CHANGELOG.md
