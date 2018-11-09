@@ -2,6 +2,15 @@
 ## [Unreleased]
 
 
+<a name="v0.8.5"></a>
+## [v0.8.5] - 2018-11-09
+### Code Maintenance
+- install packr command in make deps
+
+### New Features
+- add design doc. fixes [#1](https://git.nygenome.org/rmusunuri/binest/issues/1)
+
+
 <a name="v0.8.4"></a>
 ## [v0.8.4] - 2018-09-07
 ### Bug Fixes
@@ -9,6 +18,7 @@
 - typo in makefile
 
 ### Code Maintenance
+- Bump version to v0.8.4
 - Bump version to v0.8.3
 - add current version file
 - use git-chglog full binary path
@@ -141,7 +151,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.4...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.5...HEAD
+[v0.8.5]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.4...v0.8.5
 [v0.8.4]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.2...v0.8.4
 [v0.8.2]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.1...v0.8.2
 [v0.8.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.0...v0.8.1
