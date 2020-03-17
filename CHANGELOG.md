@@ -2,9 +2,16 @@
 ## [Unreleased]
 
 
+<a name="v0.9.0"></a>
+## [v0.9.0] - 2020-03-17
+### New Features
+- always choose between male/female based on yNorm value
+
+
 <a name="v0.8.5"></a>
 ## [v0.8.5] - 2018-11-09
 ### Code Maintenance
+- Bump version to v0.8.5
 - install packr command in make deps
 
 ### New Features
@@ -151,7 +158,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.5...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.9.0...HEAD
+[v0.9.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.5...v0.9.0
 [v0.8.5]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.4...v0.8.5
 [v0.8.4]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.2...v0.8.4
 [v0.8.2]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.1...v0.8.2
