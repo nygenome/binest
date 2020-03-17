@@ -87,7 +87,11 @@ func estimateSex(xNorm, yNorm float64) *Sex {
 	case "XY", "XO/XY":
 		gender = "male"
 	default:
-		gender = "unknown"
+		if yNorm < 0.00001 {
+			gender = "female"
+		} else {
+			gender = "male"
+		}
 	}
 
 	return &Sex{
