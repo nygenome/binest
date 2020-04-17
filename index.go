@@ -53,7 +53,7 @@ func (i *Index) ChromCopy(ploidy uint) *ChromCopy {
 	return &copies
 }
 
-func estimateSex(xNorm, yNorm float64) *Sex {
+func estimateSex(xNorm, yNorm float64, forceMF bool) *Sex {
 	xCopy := roundChromSize(xNorm)
 	yCopy := roundChromSize(yNorm)
 
@@ -87,10 +87,15 @@ func estimateSex(xNorm, yNorm float64) *Sex {
 	case "XY", "XO/XY":
 		gender = "male"
 	default:
-		if yNorm < 0.00001 {
-			gender = "female"
+		// Deal with unknowns depending on --force-male-female flag
+		if forceMF {
+			if yNorm < 0.00001 {
+				gender = "female"
+			} else {
+				gender = "male"
+			}
 		} else {
-			gender = "male"
+			gender = "unknown"
 		}
 	}
 
@@ -103,7 +108,7 @@ func estimateSex(xNorm, yNorm float64) *Sex {
 }
 
 // Sex estimates the sex genotype for the given index
-func (i *Index) Sex(ploidy uint) *Sex {
+func (i *Index) Sex(ploidy uint, forceMF bool) *Sex {
 	rawBins := i.Sizes(true)
 
 	// compute median byte size in autosomes
@@ -134,7 +139,7 @@ func (i *Index) Sex(ploidy uint) *Sex {
 		}
 	}
 
-	result := estimateSex(xNorm, yNorm)
+	result := estimateSex(xNorm, yNorm, forceMF)
 	result.Sample = i.Sample
 	return result
 }
