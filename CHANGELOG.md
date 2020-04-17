@@ -2,8 +2,17 @@
 ## [Unreleased]
 
 
+<a name="v0.10.0"></a>
+## [v0.10.0] - 2020-04-17
+### New Features
+- add flag to force male/female gender
+
+
 <a name="v0.9.0"></a>
 ## [v0.9.0] - 2020-03-17
+### Code Maintenance
+- Bump version to v0.9.0
+
 ### New Features
 - always choose between male/female based on yNorm value
 
@@ -158,7 +167,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.9.0...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.0...HEAD
+[v0.10.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.5...v0.9.0
 [v0.8.5]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.4...v0.8.5
 [v0.8.4]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.2...v0.8.4
