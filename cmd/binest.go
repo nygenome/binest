@@ -43,6 +43,7 @@ git commit : %s
 	cPloidy := chrCpy.Flag("ploidy", "base ploidy to use for chromosome copy estimate.").Default("2").Uint()
 	zRaw := size.Flag("raw", "out raw sizes without normalization.").Short('r').Default("false").Bool()
 	xPloidy := sex.Flag("ploidy", "base ploidy to use for sex genotype estimate.").Default("2").Uint()
+	forceMF := sex.Flag("force-male-female", "Force male/female gender based on normalized value thresholds.").Default("false").Bool()
 
 	app.HelpFlag.Short('h')
 	app.VersionFlag.Short('v')
@@ -70,7 +71,7 @@ git commit : %s
 		go binest.RunSize(indexes, errChan, doneChan, out, *fai, *zRaw)
 		go streamIndexes(*zIdxs, indexes, errChan)
 	case "sex":
-		go binest.RunSex(indexes, errChan, doneChan, out, *fai, *xPloidy)
+		go binest.RunSex(indexes, errChan, doneChan, out, *fai, *xPloidy, *forceMF)
 		go streamIndexes(*xIdxs, indexes, errChan)
 	}
 
