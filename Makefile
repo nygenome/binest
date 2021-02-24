@@ -10,10 +10,9 @@ GITCOMMIT := $(GITCOMMIT)-dirty
 endif
 
 GO := go
-dep := $(GOBIN)/dep
-packr := $(GOBIN)/packr
-sembump := $(GOBIN)/sembump
-git-chglog := $(GOBIN)/git-chglog
+packr := packr
+sembump := sembump
+git-chglog := git-chglog
 LDFLAGS=-ldflags "-w -X=$(PKG).Version=$(VERSION) -X=main.buildTime=$(BUILDTIME) -X=main.gitCommit=$(GITCOMMIT)"
 SRC = $(shell find . -type f -not -path "./vendor/*" -and -name '*.go' -and -not -name '*.pb.go')
 
@@ -30,10 +29,6 @@ $(packr): ## Install packr to embed resources
 	@echo "+ $@"
 	@$(GO) get github.com/gobuffalo/packr/...
 
-$(dep): ## Install dep to install dependencies
-	@echo "+ $@"
-	@curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-
 $(sembump): ## Install sembump to automate semantic versioning
 	@echo "+ $@"
 	@$(GO) get github.com/jfinken/sembump
@@ -43,9 +38,10 @@ $(git-chlog): ## Install sembump to automate changelogs
 	@$(GO) get github.com/git-chglog/git-chglog/cmd/git-chglog
 
 .PHONY: dep_ensure
-dep_ensure: $(dep) ## Pin dependencies for builds
+dep_ensure: ## Pin dependencies for builds
 	@echo "+ $@"
-	@$(dep) ensure
+	@$(GO) mod tidy
+	@$(GO) mod verify
 
 .PHONY: packr_gen
 packr_gen: $(packr) ## Embed sites data into package for bundling
@@ -103,7 +99,7 @@ install: packr_gen ## Installs the snifty executable in $GOBIN
 
 bin/golangci-lint: ## Installs golangci-lint to run checks
 	@echo "+ $@"
-	@curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.10.2
+	@curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.37.1
 
 .PHONY: lint
 lint: bin/golangci-lint ## Verifies that various golangci-lint checks passes
