@@ -2,8 +2,21 @@
 ## [Unreleased]
 
 
+<a name="v0.10.1"></a>
+## [v0.10.1] - 2021-02-24
+### Code Maintenance
+- remove sembump dl in makefile
+- update to go modules and makefile
+
+### New Features
+- add numreads subcommand
+
+
 <a name="v0.10.0"></a>
 ## [v0.10.0] - 2020-04-17
+### Code Maintenance
+- Bump version to v0.10.0
+
 ### New Features
 - add flag to force male/female gender
 
@@ -167,7 +180,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.0...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.1...HEAD
+[v0.10.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.0...v0.10.1
 [v0.10.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.5...v0.9.0
 [v0.8.5]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.4...v0.8.5
