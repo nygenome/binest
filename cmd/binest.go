@@ -33,17 +33,20 @@ git commit : %s
 	chrCpy := app.Command("chromcopy", "Estimate per chromosome copy number for sample(s) given their indexes.")
 	size := app.Command("size", "Compute raw/normalized size for every 16kb window for sample(s) given their indexes.")
 	sex := app.Command("sex", "Estimate sex genotype for sample(s) given their indexes.")
+	nrds := app.Command("numreads", "Print the total number of reads for sample(s) given their BAM indexes.")
 
 	// indexes
 	cIdxs := chrCpy.Arg("index", "path to one or more index files.").ExistingFiles()
 	zIdxs := size.Arg("index", "path to one or more index files.").ExistingFiles()
 	xIdxs := sex.Arg("index", "path to one or more index files.").ExistingFiles()
+	nIdxs := nrds.Arg("index", "path to one or more index files.").ExistingFiles()
 
 	// other command flags
 	cPloidy := chrCpy.Flag("ploidy", "base ploidy to use for chromosome copy estimate.").Default("2").Uint()
 	zRaw := size.Flag("raw", "out raw sizes without normalization.").Short('r').Default("false").Bool()
 	xPloidy := sex.Flag("ploidy", "base ploidy to use for sex genotype estimate.").Default("2").Uint()
 	forceMF := sex.Flag("force-male-female", "Force male/female gender based on normalized value thresholds.").Default("false").Bool()
+	incUnMap := nrds.Flag("include-unmapped", "Include unmapped reads in count.").Default("false").Bool()
 
 	app.HelpFlag.Short('h')
 	app.VersionFlag.Short('v')
@@ -73,6 +76,9 @@ git commit : %s
 	case "sex":
 		go binest.RunSex(indexes, errChan, doneChan, out, *fai, *xPloidy, *forceMF)
 		go streamIndexes(*xIdxs, indexes, errChan)
+	case "numreads":
+		go binest.RunNumreads(indexes, errChan, doneChan, out, *incUnMap)
+		go streamIndexes(*nIdxs, indexes, errChan)
 	}
 
 Loop:
