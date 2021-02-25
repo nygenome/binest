@@ -2,10 +2,19 @@
 ## [Unreleased]
 
 
+<a name="v0.12.0"></a>
+## [v0.12.0] - 2021-02-24
+### Bug Fixes
+- skip chroms without any data
+
+
 <a name="v0.11.0"></a>
 ## [v0.11.0] - 2021-02-24
 ### Bug Fixes
 - resolve nil dereference error, use raw data directly
+
+### Code Maintenance
+- Bump version to v0.11.0
 
 
 <a name="v0.10.1"></a>
@@ -187,7 +196,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.11.0...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.12.0...HEAD
+[v0.12.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.11.0...v0.12.0
 [v0.11.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.1...v0.11.0
 [v0.10.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.0...v0.10.1
 [v0.10.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.9.0...v0.10.0
