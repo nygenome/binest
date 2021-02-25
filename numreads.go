@@ -30,7 +30,7 @@ func RunNumreads(idxsChan <-chan string, errChan chan<- error, doneChan chan<- b
 		}
 
 		sampleRdCnt := uint64(0)
-		for n := 0; n <= idx.NumRefs(); n++ {
+		for n := 0; n < idx.NumRefs(); n++ {
 			chromStats, ok := idx.ReferenceStats(n)
 			if !ok {
 				continue
