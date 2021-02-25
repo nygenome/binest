@@ -2,9 +2,16 @@
 ## [Unreleased]
 
 
+<a name="v0.11.0"></a>
+## [v0.11.0] - 2021-02-24
+### Bug Fixes
+- resolve nil dereference error, use raw data directly
+
+
 <a name="v0.10.1"></a>
 ## [v0.10.1] - 2021-02-24
 ### Code Maintenance
+- Bump version to v0.10.1
 - remove sembump dl in makefile
 - update to go modules and makefile
 
@@ -180,7 +187,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.1...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.11.0...HEAD
+[v0.11.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.1...v0.11.0
 [v0.10.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.0...v0.10.1
 [v0.10.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.5...v0.9.0
