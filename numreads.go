@@ -1,8 +1,12 @@
 package binest
 
 import (
+	"bufio"
 	"fmt"
 	"io"
+	"os"
+
+	"github.com/biogo/hts/bam"
 )
 
 // RunNumreads counts the number of reads for each given index,
@@ -10,21 +14,34 @@ import (
 func RunNumreads(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool, w io.Writer, includeUnmapped bool) {
 	fmt.Fprintln(w, "SAMPLE\tNUM_READS")
 	for idxPath := range idxsChan {
-		internalIdx, err := baiRefIdxs(idxPath)
+		sampleName := stripKnownSuffixes(idxPath)
+
+		fh, err := os.Open(idxPath)
+		if err != nil {
+			errChan <- err
+			continue
+		}
+		defer fh.Close()
+
+		idx, err := bam.ReadIndex(bufio.NewReader(fh))
 		if err != nil {
 			errChan <- err
 			continue
 		}
 
 		sampleRdCnt := uint64(0)
-		for _, chrom := range internalIdx {
-			sampleRdCnt += chrom.Stats.Mapped
+		for n := 0; n <= idx.NumRefs(); n++ {
+			chromStats, ok := idx.ReferenceStats(n)
+			if !ok {
+				panic(fmt.Errorf("could not get read count for %s", sampleName))
+			}
+
+			sampleRdCnt += chromStats.Mapped
 			if includeUnmapped {
-				sampleRdCnt += chrom.Stats.Unmapped
+				sampleRdCnt += chromStats.Unmapped
 			}
 		}
 
-		sampleName := stripKnownSuffixes(idxPath)
 		fmt.Fprintf(w, "%s\t%d\n", sampleName, sampleRdCnt)
 	}
 
