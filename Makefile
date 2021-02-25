@@ -1,6 +1,5 @@
 SHELL := /bin/bash
-NAME := $(shell echo $${PWD\#\#*/})
-PKG := git.nygenome.org/rmusunuri/$(NAME)
+PKG := git.nygenome.org/rmusunuri/binest
 VERSION := $(shell cat VERSION.txt)
 BUILDTIME := $(shell date +'%Y-%m-%dT%H:%M:%S%Z')
 GITCOMMIT := $(shell git rev-parse --short HEAD)
@@ -23,7 +22,7 @@ TARGET := $(NAME)
 all: lint install
 
 bin/$(TARGET): $(SRC)
-	@$(GO) build $(LDFLAGS) -o bin/$(TARGET) cmd/binest.go
+	@CGO_ENABLED=0 $(GO) build $(LDFLAGS) -o bin/$(TARGET) cmd/binest.go
 
 $(packr): ## Install packr to embed resources
 	@echo "+ $@"
@@ -62,25 +61,25 @@ build: packr_gen bin/$(TARGET) ## Builds a snifty executable for current OS/Arch
 .PHONY: linux64
 linux64: packr_gen ## Builds a snifty executable for linux/amd64 in bin
 	@echo "+ $@"
-	@GOOS=linux GOARCH=amd64 go build -o bin/$(TARGET)_linux64 $(LDFLAGS) cmd/binest.go
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/$(TARGET)_linux64 $(LDFLAGS) cmd/binest.go
 	@$(packr) clean
 
 .PHONY: osx64
 osx64: packr_gen ## Builds a snifty executable for osx/amd64 in bin
 	@echo "+ $@"
-	@GOOS=darwin GOARCH=amd64 go build -o bin/$(TARGET)_osx64 $(LDFLAGS) cmd/binest.go
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/$(TARGET)_osx64 $(LDFLAGS) cmd/binest.go
 	@$(packr) clean
 
 .PHONY: win64
 win64: packr_gen ## Builds a snifty executable for linux/amd64 in bin
 	@echo "+ $@"
-	@GOOS=windows GOARCH=amd64 go build -o bin/$(TARGET)_win64.exe $(LDFLAGS) cmd/binest.go
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o bin/$(TARGET)_win64.exe $(LDFLAGS) cmd/binest.go
 	@$(packr) clean
 
 .PHONY: deploy
 deploy: clean lint packr_gen linux64 osx64 win64 packr_clean ### Builds and deploys linux64, osx64, win64 binaries to gitlab
 	@echo "+ $@"
-	@$(GO) build -o bin/deploybot tools/deploybot.go
+	@CGO_ENABLED=0 $(GO) build -o bin/deploybot tools/deploybot.go
 	@bin/deploybot -version $(VERSION) -pid 214 bin/$(TARGET)_linux64 bin/$(TARGET)_osx64 bin/$(TARGET)_win64.exe
 	@$(packr) clean
 
@@ -94,7 +93,7 @@ clean: $(packr) ## Cleanup built and installed binaries
 .PHONY: install
 install: packr_gen ## Installs the snifty executable in $GOBIN
 	@echo "+ $@"
-	@$(GO) install $(LDFLAGS) cmd/binest.go
+	@CGO_ENABLED=0 $(GO) install $(LDFLAGS) cmd/binest.go
 	@$(packr) clean
 
 bin/golangci-lint: ## Installs golangci-lint to run checks
