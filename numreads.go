@@ -33,7 +33,7 @@ func RunNumreads(idxsChan <-chan string, errChan chan<- error, doneChan chan<- b
 		for n := 0; n <= idx.NumRefs(); n++ {
 			chromStats, ok := idx.ReferenceStats(n)
 			if !ok {
-				panic(fmt.Errorf("could not get read count for %s", sampleName))
+				continue
 			}
 
 			sampleRdCnt += chromStats.Mapped
