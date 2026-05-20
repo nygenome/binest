@@ -2,6 +2,8 @@ package binest
 
 import (
 	"bufio"
+	"bytes"
+	_ "embed"
 	"encoding/gob"
 	"os"
 	"reflect"
@@ -10,7 +12,6 @@ import (
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/tabix"
-	"github.com/gobuffalo/packr"
 	"gopkg.in/src-d/go-errors.v1"
 
 	"git.nygenome.org/rmusunuri/binest/internal"
@@ -24,15 +25,12 @@ type ZeroBins map[string]map[int]map[int]bool
 
 var zeros ZeroBins
 
-func init() {
-	b := packr.NewBox("./resources")
-	fh, err := b.Open("refbins.zeros")
-	if err != nil {
-		panic(err)
-	}
+//go:embed resources/refbins.zeros
+var refbinsZeros []byte
 
-	dec := gob.NewDecoder(fh)
-	if err = dec.Decode(&zeros); err != nil {
+func init() {
+	dec := gob.NewDecoder(bytes.NewReader(refbinsZeros))
+	if err := dec.Decode(&zeros); err != nil {
 		panic(err)
 	}
 }

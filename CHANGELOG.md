@@ -2,6 +2,12 @@
 ## [Unreleased]
 
 
+<a name="v0.13.1"></a>
+## [v0.13.1] - 2021-06-14
+### Code Maintenance
+- update golang base image
+
+
 <a name="v0.13.0"></a>
 ## [v0.13.0] - 2021-02-24
 ### Code Maintenance
@@ -208,7 +214,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.13.0...HEAD
+[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.13.1...HEAD
+[v0.13.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.13.0...v0.13.1
 [v0.13.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.12.0...v0.13.0
 [v0.12.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.11.0...v0.12.0
 [v0.11.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.1...v0.11.0

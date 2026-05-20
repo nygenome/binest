@@ -5,4 +5,4 @@ Package binest implements an API for getting the sizes (amount of data) across
 package binest
 
 // Version points to the current semantic version of binest
-var Version = "v0.4.2"
+var Version = "v0.13.1"
