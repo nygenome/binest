@@ -2,6 +2,7 @@ package binest
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/biogo/biogo/io/seqio/fai"
 	"github.com/biogo/hts/bam"
-	"github.com/pkg/errors"
 )
 
 // RefMap holds a mapping of ref idx to ref name
@@ -40,7 +40,7 @@ func ReadRefMap(idxPath, faiPath string) (*RefMap, error) {
 	case TbiIndex:
 		return faiRefMap(faiPath)
 	}
-	return nil, errUnsupprtedIndex.New(idxPath)
+	return nil, unsupportedIndexError(idxPath)
 }
 
 func baiRefMap(idxPath, faiPath string) (*RefMap, error) {
@@ -50,24 +50,35 @@ func baiRefMap(idxPath, faiPath string) (*RefMap, error) {
 
 	bamPath, err := getBamPath(idxPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "no bam/fai file provided to build refmap for index: %s", idxPath)
+		return nil, fmt.Errorf("no bam/fai file provided to build refmap for index: %s: %w", idxPath, err)
 	}
 
 	bamFh, err := os.Open(bamPath)
 	if err != nil {
 		return nil, err
 	}
-	defer bamFh.Close()
 
 	bamRdr, err := bam.NewReader(bamFh, runtime.GOMAXPROCS(0))
 	if err != nil {
+		if closeErr := bamFh.Close(); closeErr != nil {
+			return nil, errors.Join(err, closeErr)
+		}
 		return nil, err
 	}
-	defer bamRdr.Close()
 
 	refMap := make(RefMap, len(bamRdr.Header().Refs()))
 	for _, ref := range bamRdr.Header().Refs() {
 		refMap[ref.ID()] = ref.Name()
+	}
+
+	if err := bamRdr.Close(); err != nil {
+		if closeErr := bamFh.Close(); closeErr != nil {
+			return nil, errors.Join(err, closeErr)
+		}
+		return nil, err
+	}
+	if err := bamFh.Close(); err != nil {
+		return nil, err
 	}
 	return &refMap, nil
 }
@@ -77,11 +88,14 @@ func faiRefMap(faiPath string) (*RefMap, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fh.Close()
 
 	faiIdx, err := fai.ReadFrom(bufio.NewReader(fh))
+	closeErr := fh.Close()
 	if err != nil {
 		return nil, err
+	}
+	if closeErr != nil {
+		return nil, closeErr
 	}
 
 	faiRecords := make([]fai.Record, 0, len(faiIdx))

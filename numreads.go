@@ -12,18 +12,19 @@ import (
 // RunNumreads counts the number of reads for each given index,
 // read from the channel and results written to io.Writer.
 func RunNumreads(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool, w io.Writer, includeUnmapped bool) {
-	fmt.Fprintln(w, "SAMPLE\tNUM_READS")
+	defer func() {
+		doneChan <- true
+	}()
+
+	if _, err := fmt.Fprintln(w, "SAMPLE\tNUM_READS"); err != nil {
+		errChan <- err
+		return
+	}
+
 	for idxPath := range idxsChan {
 		sampleName := stripKnownSuffixes(idxPath)
 
-		fh, err := os.Open(idxPath)
-		if err != nil {
-			errChan <- err
-			continue
-		}
-		defer fh.Close()
-
-		idx, err := bam.ReadIndex(bufio.NewReader(fh))
+		idx, err := readBamIndex(idxPath)
 		if err != nil {
 			errChan <- err
 			continue
@@ -42,8 +43,26 @@ func RunNumreads(idxsChan <-chan string, errChan chan<- error, doneChan chan<- b
 			}
 		}
 
-		fmt.Fprintf(w, "%s\t%d\n", sampleName, sampleRdCnt)
+		if _, err = fmt.Fprintf(w, "%s\t%d\n", sampleName, sampleRdCnt); err != nil {
+			errChan <- err
+			return
+		}
+	}
+}
+
+func readBamIndex(idxPath string) (*bam.Index, error) {
+	fh, err := os.Open(idxPath)
+	if err != nil {
+		return nil, err
 	}
 
-	doneChan <- true
+	idx, readErr := bam.ReadIndex(bufio.NewReader(fh))
+	closeErr := fh.Close()
+	if readErr != nil {
+		return nil, readErr
+	}
+	if closeErr != nil {
+		return nil, closeErr
+	}
+	return idx, nil
 }

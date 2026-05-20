@@ -5,6 +5,8 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/gob"
+	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"unsafe"
@@ -12,7 +14,6 @@ import (
 	"github.com/biogo/hts/bam"
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/tabix"
-	"gopkg.in/src-d/go-errors.v1"
 
 	"git.nygenome.org/rmusunuri/binest/internal"
 )
@@ -35,8 +36,12 @@ func init() {
 	}
 }
 
-// errUnsupprtedIndex is returned when trying to read an unknown/unsupported index
-var errUnsupprtedIndex = errors.NewKind("unknown/unsupported index: %s")
+// errUnsupportedIndex is returned when trying to read an unknown/unsupported index.
+var errUnsupportedIndex = errors.New("unknown/unsupported index")
+
+func unsupportedIndexError(idxPath string) error {
+	return fmt.Errorf("%w: %s", errUnsupportedIndex, idxPath)
+}
 
 // Bins holds the raw byte sizes for each bin the the index
 // 1st dim - ref idx, 2 dim - windows within that ref idx
@@ -58,7 +63,7 @@ func ReadBins(idxPath, build string) (*Bins, error) {
 			return binSizes(refIdxs, build), nil
 		}
 	}
-	return nil, errUnsupprtedIndex.New(idxPath)
+	return nil, unsupportedIndexError(idxPath)
 }
 
 // binSizes returns sizes of all bins from the refIdxs
@@ -97,11 +102,14 @@ func baiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fh.Close()
 
 	idx, err := bam.ReadIndex(bufio.NewReader(fh))
+	closeErr := fh.Close()
 	if err != nil {
 		return nil, err
+	}
+	if closeErr != nil {
+		return nil, closeErr
 	}
 
 	idxRefs := reflect.ValueOf(*idx).FieldByName("idx").FieldByName("Refs")
@@ -117,16 +125,22 @@ func tbiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fh.Close()
 
 	tbxRdr, err := bgzf.NewReader(bufio.NewReader(fh), 2)
 	if err != nil {
+		if closeErr := fh.Close(); closeErr != nil {
+			return nil, errors.Join(err, closeErr)
+		}
 		return nil, err
 	}
 
 	idx, err := tabix.ReadFrom(tbxRdr)
+	closeErr := fh.Close()
 	if err != nil {
 		return nil, err
+	}
+	if closeErr != nil {
+		return nil, closeErr
 	}
 
 	idxRefs := reflect.ValueOf(*idx).FieldByName("idx").FieldByName("Refs")

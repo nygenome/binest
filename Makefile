@@ -9,8 +9,7 @@ GITCOMMIT := $(GITCOMMIT)-dirty
 endif
 
 GO := go
-sembump := sembump
-git-chglog := git-chglog
+GOLANGCI_LINT_VERSION := v2.12.2
 TARGET := binest
 GOBIN := $(shell $(GO) env GOBIN)
 ifeq ($(GOBIN),)
@@ -19,11 +18,12 @@ endif
 
 LDFLAGS := -ldflags "-w -X=$(PKG).Version=$(VERSION) -X=main.buildTime=$(BUILDTIME) -X=main.gitCommit=$(GITCOMMIT)"
 SRC := $(shell find . -type f -not -path "./vendor/*" -and -name '*.go' -and -not -name '*.pb.go')
+GOFILES := $(shell find . -type f -not -path "./vendor/*" -and -name '*.go')
 
 .DEFAULT_GOAL := build
 
 .PHONY: all
-all: test build
+all: check
 
 bin/$(TARGET): $(SRC) VERSION.txt
 	@echo "+ $@"
@@ -45,11 +45,31 @@ test: ## Run Go tests
 	@echo "+ $@"
 	@$(GO) test ./...
 
+.PHONY: vet
+vet: ## Run go vet
+	@echo "+ $@"
+	@$(GO) vet ./...
+
+.PHONY: fmt
+fmt: ## Format Go source files
+	@echo "+ $@"
+	@$(GO) fmt ./...
+
+.PHONY: fmt-check
+fmt-check: ## Verify Go source files are gofmt formatted
+	@echo "+ $@"
+	@test -z "$$(gofmt -l $(GOFILES))"
+
 .PHONY: tidy
 tidy: ## Tidy and verify module dependencies
 	@echo "+ $@"
 	@$(GO) mod tidy
 	@$(GO) mod verify
+
+.PHONY: tidy-check
+tidy-check: ## Verify go.mod and go.sum are tidy
+	@echo "+ $@"
+	@$(GO) mod tidy -diff
 
 .PHONY: linux64
 linux64: ## Build the binest executable for linux/amd64 in bin/
@@ -75,20 +95,17 @@ clean: ## Remove built binaries
 	@rm -rf bin/
 
 .PHONY: lint
-lint: ## Run golangci-lint if installed
+lint: ## Run pinned golangci-lint
 	@echo "+ $@"
-	@golangci-lint run -c .golangci-lint.yml
+	@$(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run -c .golangci-lint.yml
 
-.PHONY: bump
-BUMP := patch
-bump: ## Bump version and tag a release. Set BUMP to patch, minor, or major.
-	$(eval NEW_VERSION = $(shell $(sembump) --kind $(BUMP) $(VERSION)))
-	@echo "Bumping VERSION.txt from $(VERSION) to $(NEW_VERSION)"
-	@echo $(NEW_VERSION) > VERSION.txt
-	@$(git-chglog) --next-tag $(NEW_VERSION) -o CHANGELOG.md
-	git add VERSION.txt README.md CHANGELOG.md
-	git commit -vsam "chore: Bump version to $(NEW_VERSION)"
-	git tag -m "$(TARGET) $(NEW_VERSION)" -a $(NEW_VERSION)
+.PHONY: vuln
+vuln: ## Run govulncheck
+	@echo "+ $@"
+	@$(GO) tool govulncheck ./...
+
+.PHONY: check
+check: fmt-check tidy-check vet test lint vuln build ## Run all local checks
 
 .PHONY: dep_ensure
 dep_ensure: tidy ## Alias for tidy, kept for compatibility

@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/alecthomas/kong"
 
 	"git.nygenome.org/rmusunuri/binest"
 )
@@ -17,122 +19,242 @@ var (
 	errNoIndexes = errors.New("no indexes provided to process")
 )
 
+type exitStatus int
+
+type cli struct {
+	Version kong.VersionFlag `short:"v" help:"Show application version."`
+	FAI     string           `short:"f" name:"fai" type:"existingfile" help:"path to reference fasta index (*.fai)."`
+
+	ChromCopy chromCopyCmd `cmd:"" name:"chromcopy" help:"Estimate per chromosome copy number for sample(s) given their indexes."`
+	Size      sizeCmd      `cmd:"" name:"size" help:"Compute raw/normalized size for every 16kb window for sample(s) given their indexes."`
+	Sex       sexCmd       `cmd:"" name:"sex" help:"Estimate sex genotype for sample(s) given their indexes."`
+	Numreads  numreadsCmd  `cmd:"" name:"numreads" help:"Print the total number of reads for sample(s) given their BAM indexes."`
+}
+
+type chromCopyCmd struct {
+	Ploidy  uint     `default:"2" help:"base ploidy to use for chromosome copy estimate."`
+	Indexes []string `arg:"" optional:"" name:"index" type:"existingfile" help:"path to one or more index files."`
+}
+
+type sizeCmd struct {
+	Raw     bool     `short:"r" help:"out raw sizes without normalization."`
+	Indexes []string `arg:"" optional:"" name:"index" type:"existingfile" help:"path to one or more index files."`
+}
+
+type sexCmd struct {
+	Ploidy          uint     `default:"2" help:"base ploidy to use for sex genotype estimate."`
+	ForceMaleFemale bool     `name:"force-male-female" help:"Force male/female gender based on normalized value thresholds."`
+	Indexes         []string `arg:"" optional:"" name:"index" type:"existingfile" help:"path to one or more index files."`
+}
+
+type numreadsCmd struct {
+	IncludeUnmapped bool     `name:"include-unmapped" help:"Include unmapped reads in count."`
+	Indexes         []string `arg:"" optional:"" name:"index" type:"existingfile" help:"path to one or more index files."`
+}
+
+type commandEnv struct {
+	cli    *cli
+	stdin  io.Reader
+	stdout io.Writer
+	stderr io.Writer
+}
+
 func main() {
-	version := fmt.Sprintf(`binest %s
+	var stdin io.Reader
+	if hasStdin(os.Stdin, os.Stderr) {
+		stdin = os.Stdin
+	}
+
+	os.Exit(run(os.Args[1:], stdin, os.Stdout, os.Stderr))
+}
+
+func versionString() string {
+	return fmt.Sprintf(`binest %s
 build time : %s
 git commit : %s
 `, binest.Version, buildTime, gitCommit)
-
-	desc := "Estimate chromosome copy, sex and size from BAM/tabix index bins."
-	app := kingpin.New("binest", desc).Version(version)
-
-	// application flags
-	fai := app.Flag("fai", "path to reference fasta index (*.fai).").Short('f').ExistingFile()
-
-	// commands
-	chrCpy := app.Command("chromcopy", "Estimate per chromosome copy number for sample(s) given their indexes.")
-	size := app.Command("size", "Compute raw/normalized size for every 16kb window for sample(s) given their indexes.")
-	sex := app.Command("sex", "Estimate sex genotype for sample(s) given their indexes.")
-	nrds := app.Command("numreads", "Print the total number of reads for sample(s) given their BAM indexes.")
-
-	// indexes
-	cIdxs := chrCpy.Arg("index", "path to one or more index files.").ExistingFiles()
-	zIdxs := size.Arg("index", "path to one or more index files.").ExistingFiles()
-	xIdxs := sex.Arg("index", "path to one or more index files.").ExistingFiles()
-	nIdxs := nrds.Arg("index", "path to one or more index files.").ExistingFiles()
-
-	// other command flags
-	cPloidy := chrCpy.Flag("ploidy", "base ploidy to use for chromosome copy estimate.").Default("2").Uint()
-	zRaw := size.Flag("raw", "out raw sizes without normalization.").Short('r').Default("false").Bool()
-	xPloidy := sex.Flag("ploidy", "base ploidy to use for sex genotype estimate.").Default("2").Uint()
-	forceMF := sex.Flag("force-male-female", "Force male/female gender based on normalized value thresholds.").Default("false").Bool()
-	incUnMap := nrds.Flag("include-unmapped", "Include unmapped reads in count.").Default("false").Bool()
-
-	app.HelpFlag.Short('h')
-	app.VersionFlag.Short('v')
-
-	cmd, err := app.Parse(os.Args[1:])
-	if err != nil {
-		app.Usage(os.Args[1:])
-		os.Exit(1)
-	}
-
-	indexes := make(chan string, 100)
-	errChan := make(chan error, 10)
-	doneChan := make(chan bool, 1)
-
-	fmt.Fprint(os.Stderr, version)
-
-	out := bufio.NewWriter(os.Stdout)
-	defer out.Flush()
-
-	switch kingpin.MustParse(cmd, err) {
-	case "chromcopy":
-		go binest.RunChromCopy(indexes, errChan, doneChan, out, *fai, *cPloidy)
-		go streamIndexes(*cIdxs, indexes, errChan)
-	case "size":
-		go binest.RunSize(indexes, errChan, doneChan, out, *fai, *zRaw)
-		go streamIndexes(*zIdxs, indexes, errChan)
-	case "sex":
-		go binest.RunSex(indexes, errChan, doneChan, out, *fai, *xPloidy, *forceMF)
-		go streamIndexes(*xIdxs, indexes, errChan)
-	case "numreads":
-		go binest.RunNumreads(indexes, errChan, doneChan, out, *incUnMap)
-		go streamIndexes(*nIdxs, indexes, errChan)
-	}
-
-Loop:
-	for {
-		select {
-		case err := <-errChan:
-			if err == errNoIndexes {
-				fmt.Fprintln(os.Stderr, "No indexes provided to process!")
-				app.Usage(os.Args[1:])
-				os.Exit(1)
-			}
-			panic(err)
-		case <-doneChan:
-			close(errChan)
-			break Loop
-		}
-	}
 }
 
-func streamIndexes(args []string, idxsChan chan<- string, errChan chan<- error) {
-	gotInput := len(args) > 0
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (status int) {
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			return
+		}
+		if code, ok := recovered.(exitStatus); ok {
+			status = int(code)
+			return
+		}
+		panic(recovered)
+	}()
 
-	for _, arg := range args {
-		idxsChan <- arg
+	app := &cli{}
+	parser, err := newParser(app, stdout, stderr)
+	if err != nil {
+		if _, writeErr := fmt.Fprintln(stderr, err); writeErr != nil {
+			return 1
+		}
+		return 1
 	}
 
-	if hasStdin() {
-		scanner := bufio.NewScanner(os.Stdin)
+	ctx, err := parser.Parse(args)
+	parser.FatalIfErrorf(err)
+
+	if _, err = fmt.Fprint(stderr, versionString()); err != nil {
+		return 1
+	}
+
+	out := bufio.NewWriter(stdout)
+	env := &commandEnv{
+		cli:    app,
+		stdin:  stdin,
+		stdout: out,
+		stderr: stderr,
+	}
+
+	err = ctx.Run(env)
+	if flushErr := out.Flush(); err == nil {
+		err = flushErr
+	}
+	if err == nil {
+		return 0
+	}
+	if errors.Is(err, errNoIndexes) {
+		if _, writeErr := fmt.Fprintln(stderr, "No indexes provided to process!"); writeErr != nil {
+			return 1
+		}
+		if usageErr := printUsageTo(stderr, ctx); usageErr != nil {
+			panic(usageErr)
+		}
+		return 1
+	}
+	panic(err)
+}
+
+func newParser(app *cli, stdout, stderr io.Writer) (*kong.Kong, error) {
+	version := strings.TrimSuffix(versionString(), "\n")
+	return kong.New(
+		app,
+		kong.Name("binest"),
+		kong.Description("Estimate chromosome copy, sex and size from BAM/tabix index bins."),
+		kong.Vars{"version": version},
+		kong.Writers(stdout, stderr),
+		kong.ShortUsageOnError(),
+		kong.Exit(func(code int) {
+			panic(exitStatus(code))
+		}),
+	)
+}
+
+func printUsageTo(w io.Writer, ctx *kong.Context) error {
+	oldStdout := ctx.Stdout
+	ctx.Stdout = w
+	defer func() {
+		ctx.Stdout = oldStdout
+	}()
+	return ctx.PrintUsage(false)
+}
+
+func (c *chromCopyCmd) Run(env *commandEnv) error {
+	indexes, err := collectIndexes(c.Indexes, env.stdin)
+	if err != nil {
+		return err
+	}
+	return runIndexes(indexes, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
+		binest.RunChromCopy(idxsChan, errChan, doneChan, env.stdout, env.cli.FAI, c.Ploidy)
+	})
+}
+
+func (c *sizeCmd) Run(env *commandEnv) error {
+	indexes, err := collectIndexes(c.Indexes, env.stdin)
+	if err != nil {
+		return err
+	}
+	return runIndexes(indexes, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
+		binest.RunSize(idxsChan, errChan, doneChan, env.stdout, env.cli.FAI, c.Raw)
+	})
+}
+
+func (c *sexCmd) Run(env *commandEnv) error {
+	indexes, err := collectIndexes(c.Indexes, env.stdin)
+	if err != nil {
+		return err
+	}
+	return runIndexes(indexes, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
+		binest.RunSex(idxsChan, errChan, doneChan, env.stdout, env.cli.FAI, c.Ploidy, c.ForceMaleFemale)
+	})
+}
+
+func (c *numreadsCmd) Run(env *commandEnv) error {
+	indexes, err := collectIndexes(c.Indexes, env.stdin)
+	if err != nil {
+		return err
+	}
+	return runIndexes(indexes, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
+		binest.RunNumreads(idxsChan, errChan, doneChan, env.stdout, c.IncludeUnmapped)
+	})
+}
+
+func collectIndexes(args []string, stdin io.Reader) ([]string, error) {
+	indexes := append([]string(nil), args...)
+	gotInput := len(indexes) > 0
+
+	if stdin != nil {
 		gotInput = true
+		scanner := bufio.NewScanner(stdin)
 		for scanner.Scan() {
-			idxsChan <- scanner.Text()
+			indexes = append(indexes, scanner.Text())
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Fprintln(os.Stderr, "error reading data from stdin")
-			errChan <- err
+			return nil, fmt.Errorf("error reading data from stdin: %w", err)
 		}
 	}
 
 	if !gotInput {
-		errChan <- errNoIndexes
+		return nil, errNoIndexes
 	}
-
-	close(idxsChan)
+	return indexes, nil
 }
 
-// hasStdin checks if process can read from /dev/stdin
-func hasStdin() bool {
-	stat, err := os.Stdin.Stat()
+func runIndexes(indexes []string, runner func(<-chan string, chan<- error, chan<- bool)) error {
+	idxsChan := make(chan string, len(indexes))
+	errChan := make(chan error, len(indexes)+1)
+	doneChan := make(chan bool, 1)
+
+	go runner(idxsChan, errChan, doneChan)
+
+	for _, idxPath := range indexes {
+		idxsChan <- idxPath
+	}
+	close(idxsChan)
+
+	for {
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return err
+			}
+		case <-doneChan:
+			select {
+			case err := <-errChan:
+				if err != nil {
+					return err
+				}
+			default:
+			}
+			return nil
+		}
+	}
+}
+
+// hasStdin checks if process can read from stdin.
+func hasStdin(stdin *os.File, stderr io.Writer) bool {
+	stat, err := stdin.Stat()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error checking for data from stdin")
+		if _, writeErr := fmt.Fprintln(stderr, "Error checking for data from stdin"); writeErr != nil {
+			panic(errors.Join(err, writeErr))
+		}
 		panic(err)
 	}
-	if stat.Mode()&os.ModeCharDevice == 0 {
-		return true
-	}
-	return false
+	return stat.Mode()&os.ModeCharDevice == 0
 }
