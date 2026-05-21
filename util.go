@@ -35,7 +35,7 @@ func medianI64(arr []int64) (median float64) {
 
 	arrLen := len(arr)
 	if arrLen%2 == 0 {
-		median = float64(arr[arrLen/2-1]+arr[arrLen/2+1]) / float64(2)
+		median = (float64(arr[arrLen/2-1]) + float64(arr[arrLen/2])) / 2
 	} else {
 		median = float64(arr[arrLen/2])
 	}

@@ -1,25 +1,25 @@
 {
   "outputs": {
     "chromcopy_bai": {
-      "sha256": "196c6b2266d5ae06912748794902194b440e7d01523c03ffa5656bb8c522b9ab",
+      "sha256": "8305d9ffe8b3964ca65667c5fd9fd3c33eef13848ba857d125b1c9f3947a8dec",
       "lines": 97,
       "header": "SAMPLE\tCHROM\tCOPY_ESTIMATE\tNORM_ESTIMATE",
       "first": [
         "SAMPLE\tCHROM\tCOPY_ESTIMATE\tNORM_ESTIMATE",
-        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchr1\t2\t1.9959046877030515",
-        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchr2\t2\t2.0082879025848777",
-        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchr3\t2\t2.011512508279417"
+        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchr1\t2\t1.995886795475272",
+        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchr2\t2\t2.0082801728270336",
+        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchr3\t2\t2.011512544887391"
       ],
       "last": [
-        "HG004.GRCh38.2x250\tchr22\t2\t2.0757326109421936",
-        "HG004.GRCh38.2x250\tchrX\t2\t1.9055162850493772",
+        "HG004.GRCh38.2x250\tchr22\t2\t2.07558024988665",
+        "HG004.GRCh38.2x250\tchrX\t2\t1.9055140131365944",
         "HG004.GRCh38.2x250\tchrY\t0\t0.00000014039288913266037"
       ],
       "sentinels": [
-        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchr1\t2\t1.9959046877030515",
-        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchrX\t2\t1.9394508680435514",
-        "HG002.GRCh38.2x250\tchrY\t1\t0.9336482571937663",
-        "HG004.GRCh38.2x250\tchrX\t2\t1.9055162850493772"
+        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchr1\t2\t1.995886795475272",
+        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchrX\t2\t1.939450903340059",
+        "HG002.GRCh38.2x250\tchrY\t1\t0.9334049982625355",
+        "HG004.GRCh38.2x250\tchrX\t2\t1.9055140131365944"
       ]
     },
     "numreads_all": {
@@ -55,58 +55,58 @@
       ]
     },
     "sex_bai": {
-      "sha256": "6cee60e0c2b33e30d9c24344af9dea1503f3092c86ad1c1f86c6b98bf7b91062",
+      "sha256": "dd40c0fa50cd27f255afaaa15168adac06cfd7672b1f88d45b1641db14eea379",
       "lines": 5,
       "header": "SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORM_X\tNORM_Y",
       "first": [
         "SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORM_X\tNORM_Y",
-        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tfemale\tXX\t1.9394508680435514\t0.00000011914059304250119",
-        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9336482571937663",
-        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9382118638427959"
+        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tfemale\tXX\t1.939450903340059\t0.00000011907649606174922",
+        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9334049982625355",
+        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9381004630289768"
       ],
       "last": [
-        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9336482571937663",
-        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9382118638427959",
-        "HG004.GRCh38.2x250\tfemale\tXX\t1.9055162850493772\t0.00000014039288913266037"
+        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9334049982625355",
+        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9381004630289768",
+        "HG004.GRCh38.2x250\tfemale\tXX\t1.9055140131365944\t0.00000014039288913266037"
       ],
       "sentinels": [
-        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tfemale\tXX\t1.9394508680435514\t0.00000011914059304250119",
-        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9336482571937663",
-        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9382118638427959",
-        "HG004.GRCh38.2x250\tfemale\tXX\t1.9055162850493772\t0.00000014039288913266037"
+        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tfemale\tXX\t1.939450903340059\t0.00000011907649606174922",
+        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9334049982625355",
+        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9381004630289768",
+        "HG004.GRCh38.2x250\tfemale\tXX\t1.9055140131365944\t0.00000014039288913266037"
       ]
     },
     "sex_bai_force_mf": {
-      "sha256": "6cee60e0c2b33e30d9c24344af9dea1503f3092c86ad1c1f86c6b98bf7b91062",
+      "sha256": "dd40c0fa50cd27f255afaaa15168adac06cfd7672b1f88d45b1641db14eea379",
       "lines": 5,
       "header": "SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORM_X\tNORM_Y",
       "first": [
         "SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORM_X\tNORM_Y",
-        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tfemale\tXX\t1.9394508680435514\t0.00000011914059304250119",
-        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9336482571937663",
-        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9382118638427959"
+        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tfemale\tXX\t1.939450903340059\t0.00000011907649606174922",
+        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9334049982625355",
+        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9381004630289768"
       ],
       "last": [
-        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9336482571937663",
-        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9382118638427959",
-        "HG004.GRCh38.2x250\tfemale\tXX\t1.9055162850493772\t0.00000014039288913266037"
+        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9334049982625355",
+        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9381004630289768",
+        "HG004.GRCh38.2x250\tfemale\tXX\t1.9055140131365944\t0.00000014039288913266037"
       ],
       "sentinels": [
-        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tfemale\tXX\t1.9394508680435514\t0.00000011914059304250119",
-        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9336482571937663",
-        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9382118638427959",
-        "HG004.GRCh38.2x250\tfemale\tXX\t1.9055162850493772\t0.00000014039288913266037"
+        "HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tfemale\tXX\t1.939450903340059\t0.00000011907649606174922",
+        "HG002.GRCh38.2x250\tmale\tXY\t0.9907857627213107\t0.9334049982625355",
+        "HG003.GRCh38.2x250\tmale\tXY\t0.990992918402688\t0.9381004630289768",
+        "HG004.GRCh38.2x250\tfemale\tXX\t1.9055140131365944\t0.00000014039288913266037"
       ]
     },
     "size_bai_norm": {
-      "sha256": "734aab1bd1eac41f34eda50ea15d717387615c20debe17025df86215474b289f",
+      "sha256": "16be5c02514899abed5ae7bdd96a61caeeebbdf69d0f4e64da2a5459a5b5d1da",
       "lines": 712146,
       "header": "CHROM\tSTART\tEND\tNORMALIZED_SIZE\tSAMPLE",
       "first": [
         "CHROM\tSTART\tEND\tNORMALIZED_SIZE\tSAMPLE",
-        "chr1\t0\t16384\t0.13468947382128646\tHG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x",
-        "chr1\t16384\t32768\t0.19461030697579715\tHG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x",
-        "chr1\t32768\t49152\t0.07632272979216649\tHG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x"
+        "chr1\t0\t16384\t0.13468947627253083\tHG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x",
+        "chr1\t16384\t32768\t0.19461031051755442\tHG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x",
+        "chr1\t32768\t49152\t0.07632273118118123\tHG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x"
       ],
       "last": [
         "chrY\t56836096\t56852480\t3.798641419488495\tHG004.GRCh38.2x250",
@@ -114,7 +114,7 @@
         "chrY\t56868864\t56885248\t4.981318271257401\tHG004.GRCh38.2x250"
       ],
       "sentinels": [
-        "chr2\t0\t16384\t0.32833331968265556\tHG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x",
+        "chr2\t0\t16384\t0.32833332565806833\tHG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x",
         "chrX\t0\t16384\t0.03173836406998518\tHG002.GRCh38.2x250",
         "chrY\t2752512\t2768896\t172571.3545128986\tHG003.GRCh38.2x250",
         "chrY\t2785280\t2801664\t176263.4393228631\tHG004.GRCh38.2x250"

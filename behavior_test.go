@@ -69,16 +69,33 @@ func TestRoundChromSize(t *testing.T) {
 	}
 }
 
-func TestMedianI64CurrentEvenLengthBehaviorProof(t *testing.T) {
-	vals := []int64{10, 20, 30, 40}
-	got := medianI64(vals)
-	if got != 30 {
-		t.Fatalf("medianI64([10 20 30 40]) = %v, want current characterized value 30", got)
+func TestMedianI64(t *testing.T) {
+	tests := []struct {
+		name string
+		vals []int64
+		want float64
+	}{
+		{name: "odd length", vals: []int64{30, 10, 20}, want: 20},
+		{name: "even length", vals: []int64{10, 20, 30, 40}, want: 25},
+		{name: "single value", vals: []int64{10}, want: 10},
+		{name: "two values", vals: []int64{10, 20}, want: 15},
+		{name: "zero median falls back to non-zero suffix", vals: []int64{0, 0, 0, 10, 20}, want: 15},
 	}
 
-	mathematicallyCorrect := 25.0
-	if got == mathematicallyCorrect {
-		t.Fatalf("current median unexpectedly matches mathematically correct median %v", mathematicallyCorrect)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := medianI64(test.vals); got != test.want {
+				t.Fatalf("medianI64(%v) = %v, want %v", test.vals, got, test.want)
+			}
+		})
+	}
+}
+
+func TestMedianI64CorrectEvenLengthBehavior(t *testing.T) {
+	vals := []int64{10, 20, 30, 40}
+	got := medianI64(vals)
+	if got != 25 {
+		t.Fatalf("medianI64([10 20 30 40]) = %v, want 25", got)
 	}
 
 	bins := Bins{{10, 20}, {30, 40}, {25}, {25}}
@@ -86,21 +103,16 @@ func TestMedianI64CurrentEvenLengthBehaviorProof(t *testing.T) {
 	idx := &Index{Bins: &bins, RefMap: refMap, Sample: "median-probe"}
 	gotTSV := idx.Sizes(false).String()
 
-	currentRows := []string{
-		"1\t0\t16384\t0.3333333333333333\tmedian-probe",
-		"1\t16384\t32768\t0.6666666666666666\tmedian-probe",
-		"2\t0\t16384\t1\tmedian-probe",
-		"2\t16384\t32768\t1.3333333333333333\tmedian-probe",
+	correctedRows := []string{
+		"1\t0\t16384\t0.4\tmedian-probe",
+		"1\t16384\t32768\t0.8\tmedian-probe",
+		"2\t0\t16384\t1.2\tmedian-probe",
+		"2\t16384\t32768\t1.6\tmedian-probe",
 	}
-	for _, row := range currentRows {
+	for _, row := range correctedRows {
 		if !strings.Contains(gotTSV, row) {
-			t.Fatalf("normalized TSV missing current-behavior row %q:\n%s", row, gotTSV)
+			t.Fatalf("normalized TSV missing corrected row %q:\n%s", row, gotTSV)
 		}
-	}
-
-	correctedRow := "1\t0\t16384\t0.4\tmedian-probe"
-	if strings.Contains(gotTSV, correctedRow) {
-		t.Fatalf("current TSV unexpectedly contains corrected median row %q:\n%s", correctedRow, gotTSV)
 	}
 }
 
