@@ -2,8 +2,8 @@ SHELL := /bin/bash
 PKG := git.nygenome.org/rmusunuri/binest
 VERSION := $(shell cat VERSION.txt)
 BUILDTIME := $(shell date +'%Y-%m-%dT%H:%M:%S%Z')
-GITCOMMIT := $(shell git rev-parse --short HEAD)
-GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
+GITCOMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no 2>/dev/null)
 ifneq ($(GITUNTRACKEDCHANGES),)
 GITCOMMIT := $(GITCOMMIT)-dirty
 endif

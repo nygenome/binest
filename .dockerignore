@@ -1,0 +1,13 @@
+.cache/
+.git/
+bin/
+testdata/giab/cache/
+testdata/**/generated/
+*.bam
+*.bai
+*.cram
+*.crai
+*.vcf.gz
+*.vcf.gz.tbi
+*.bed.gz
+*.bed.gz.tbi

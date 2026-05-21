@@ -16,16 +16,18 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
-          go-version-file: go.mod
+          go-version: "1.26.3"
           cache: true
 
       - name: Cache GIAB fixtures
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .cache/binest-fixtures/giab
           key: giab-fixtures-${{ hashFiles('testdata/giab/manifest.tsv') }}
@@ -48,11 +50,14 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Check git size guardrails
+        run: make git-size-check
+
       - name: Vulnerability scan
         run: go tool govulncheck ./...
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9
         with:
           version: v2.12.2
           args: --timeout=5m

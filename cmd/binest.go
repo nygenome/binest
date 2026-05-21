@@ -156,94 +156,112 @@ func printUsageTo(w io.Writer, ctx *kong.Context) error {
 }
 
 func (c *chromCopyCmd) Run(env *commandEnv) error {
-	indexes, err := collectIndexes(c.Indexes, env.stdin)
-	if err != nil {
-		return err
-	}
-	return runIndexes(indexes, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
+	return runIndexes(c.Indexes, env.stdin, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
 		binest.RunChromCopy(idxsChan, errChan, doneChan, env.stdout, env.cli.FAI, c.Ploidy)
 	})
 }
 
 func (c *sizeCmd) Run(env *commandEnv) error {
-	indexes, err := collectIndexes(c.Indexes, env.stdin)
-	if err != nil {
-		return err
-	}
-	return runIndexes(indexes, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
+	return runIndexes(c.Indexes, env.stdin, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
 		binest.RunSize(idxsChan, errChan, doneChan, env.stdout, env.cli.FAI, c.Raw)
 	})
 }
 
 func (c *sexCmd) Run(env *commandEnv) error {
-	indexes, err := collectIndexes(c.Indexes, env.stdin)
-	if err != nil {
-		return err
-	}
-	return runIndexes(indexes, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
+	return runIndexes(c.Indexes, env.stdin, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
 		binest.RunSex(idxsChan, errChan, doneChan, env.stdout, env.cli.FAI, c.Ploidy, c.ForceMaleFemale)
 	})
 }
 
 func (c *numreadsCmd) Run(env *commandEnv) error {
-	indexes, err := collectIndexes(c.Indexes, env.stdin)
-	if err != nil {
-		return err
-	}
-	return runIndexes(indexes, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
+	return runIndexes(c.Indexes, env.stdin, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
 		binest.RunNumreads(idxsChan, errChan, doneChan, env.stdout, c.IncludeUnmapped)
 	})
 }
 
-func collectIndexes(args []string, stdin io.Reader) ([]string, error) {
-	indexes := append([]string(nil), args...)
-	gotInput := len(indexes) > 0
-
-	if stdin != nil {
-		gotInput = true
-		scanner := bufio.NewScanner(stdin)
-		for scanner.Scan() {
-			indexes = append(indexes, scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			return nil, fmt.Errorf("error reading data from stdin: %w", err)
-		}
+func runIndexes(args []string, stdin io.Reader, runner func(<-chan string, chan<- error, chan<- bool)) error {
+	if len(args) == 0 && stdin == nil {
+		return errNoIndexes
 	}
 
-	if !gotInput {
-		return nil, errNoIndexes
-	}
-	return indexes, nil
-}
-
-func runIndexes(indexes []string, runner func(<-chan string, chan<- error, chan<- bool)) error {
-	idxsChan := make(chan string, len(indexes))
-	errChan := make(chan error, len(indexes)+1)
+	idxsChan := make(chan string)
+	errChan := make(chan error, 1)
+	feedErrChan := make(chan error, 1)
 	doneChan := make(chan bool, 1)
+	stopChan := make(chan struct{})
+	stopFeed := func() {
+		select {
+		case <-stopChan:
+		default:
+			close(stopChan)
+		}
+	}
 
 	go runner(idxsChan, errChan, doneChan)
 
-	for _, idxPath := range indexes {
-		idxsChan <- idxPath
-	}
-	close(idxsChan)
+	go func() {
+		defer close(idxsChan)
 
+		for _, idxPath := range args {
+			if !sendIndex(idxsChan, stopChan, idxPath) {
+				return
+			}
+		}
+
+		if stdin == nil {
+			return
+		}
+
+		scanner := bufio.NewScanner(stdin)
+		for scanner.Scan() {
+			if !sendIndex(idxsChan, stopChan, scanner.Text()) {
+				return
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			feedErrChan <- fmt.Errorf("error reading data from stdin: %w", err)
+		}
+	}()
+
+	var firstErr error
 	for {
 		select {
 		case err := <-errChan:
-			if err != nil {
-				return err
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
+		case err := <-feedErrChan:
+			if err != nil && firstErr == nil {
+				firstErr = err
+				stopFeed()
 			}
 		case <-doneChan:
+			stopFeed()
 			select {
 			case err := <-errChan:
-				if err != nil {
-					return err
+				if err != nil && firstErr == nil {
+					firstErr = err
 				}
 			default:
 			}
-			return nil
+			select {
+			case err := <-feedErrChan:
+				if err != nil && firstErr == nil {
+					firstErr = err
+				}
+			default:
+			}
+			return firstErr
 		}
+	}
+}
+
+func sendIndex(idxsChan chan<- string, stopChan <-chan struct{}, idxPath string) bool {
+	select {
+	case <-stopChan:
+		return false
+	case idxsChan <- idxPath:
+		return true
 	}
 }
 
