@@ -52,3 +52,18 @@ _testmain.go
 bin/
 vendor/
 .env
+
+# Test fixture caches and generated artifacts.
+.cache/binest-fixtures/
+testdata/giab/cache/
+testdata/**/generated/
+
+# Large genomics artifacts must stay out of Git. Use scripts/fetch-test-fixtures.sh.
+*.bam
+*.bai
+*.cram
+*.crai
+*.vcf.gz
+*.vcf.gz.tbi
+*.bed.gz
+*.bed.gz.tbi

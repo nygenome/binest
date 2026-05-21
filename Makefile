@@ -12,6 +12,7 @@ GO := go
 GOLANGCI_LINT_VERSION := v2.12.2
 TARGET := binest
 GOBIN := $(shell $(GO) env GOBIN)
+FIXTURE_CACHE ?= .cache/binest-fixtures/giab
 ifeq ($(GOBIN),)
 GOBIN := $(shell $(GO) env GOPATH)/bin
 endif
@@ -45,6 +46,11 @@ test: ## Run Go tests
 	@echo "+ $@"
 	@$(GO) test ./...
 
+.PHONY: test-real
+test-real: ## Run GIAB-backed real-data tests
+	@echo "+ $@"
+	@BINEST_RUN_GIAB=1 BINEST_FIXTURE_CACHE="$(FIXTURE_CACHE)" $(GO) test ./... -run 'TestGIAB'
+
 .PHONY: vet
 vet: ## Run go vet
 	@echo "+ $@"
@@ -70,6 +76,21 @@ tidy: ## Tidy and verify module dependencies
 tidy-check: ## Verify go.mod and go.sum are tidy
 	@echo "+ $@"
 	@$(GO) mod tidy -diff
+
+.PHONY: fixtures-fetch
+fixtures-fetch: ## Download and verify public GIAB test fixtures
+	@echo "+ $@"
+	@BINEST_FIXTURE_CACHE="$(FIXTURE_CACHE)" scripts/fetch-test-fixtures.sh
+
+.PHONY: fixtures-check
+fixtures-check: ## Verify cached public GIAB test fixtures
+	@echo "+ $@"
+	@BINEST_FIXTURE_CACHE="$(FIXTURE_CACHE)" scripts/fetch-test-fixtures.sh --check
+
+.PHONY: git-size-check
+git-size-check: ## Verify large generated artifacts are not tracked
+	@echo "+ $@"
+	@scripts/git-size-check.sh
 
 .PHONY: linux64
 linux64: ## Build the binest executable for linux/amd64 in bin/
@@ -105,7 +126,7 @@ vuln: ## Run govulncheck
 	@$(GO) tool govulncheck ./...
 
 .PHONY: check
-check: fmt-check tidy-check vet test lint vuln build ## Run all local checks
+check: fmt-check tidy-check vet test git-size-check lint vuln build ## Run all local checks
 
 .PHONY: dep_ensure
 dep_ensure: tidy ## Alias for tidy, kept for compatibility
