@@ -44,6 +44,12 @@ if [[ -n "${history_base}" ]]; then
     exit 1
   fi
 
+  while IFS= read -r -d '' path; do
+    if forbidden_path "${path}"; then
+      record_failure "forbidden fixture/build artifact path in history since ${history_base}: ${path}"
+    fi
+  done < <(git log -z --format= --name-only --diff-filter=ACMR "${history_base}..HEAD")
+
   while IFS= read -r object_path; do
     object="${object_path%% *}"
     path=""

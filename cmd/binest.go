@@ -113,7 +113,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (status int) 
 	}
 
 	err = ctx.Run(env)
-	if flushErr := out.Flush(); err == nil {
+	flushErr := out.Flush()
+	if err == nil {
 		err = flushErr
 	}
 	if err == nil {

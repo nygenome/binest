@@ -64,6 +64,29 @@ func TestRunNoIndexes(t *testing.T) {
 	}
 }
 
+func TestRunFlushesStdoutOnCommandError(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	var recovered any
+
+	func() {
+		defer func() {
+			recovered = recover()
+		}()
+		_ = run([]string{"size"}, strings.NewReader("missing.bai\n"), &stdout, &stderr)
+	}()
+
+	if recovered == nil {
+		t.Fatal("run() did not panic for missing index")
+	}
+	want := "CHROM\tSTART\tEND\tNORMALIZED_SIZE\tSAMPLE\n"
+	if stdout.String() != want {
+		t.Fatalf("stdout = %q, want flushed header %q", stdout.String(), want)
+	}
+	if !strings.Contains(stderr.String(), versionString()) {
+		t.Fatalf("stderr does not contain version:\n%s", stderr.String())
+	}
+}
+
 func TestParseDocumentedSizeFlags(t *testing.T) {
 	faiPath := touchTempFile(t, "ref.fasta.fai")
 	idxPath := touchTempFile(t, "sample.bai")
