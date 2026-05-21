@@ -104,10 +104,30 @@ func TestMedianI64CurrentEvenLengthBehaviorProof(t *testing.T) {
 	}
 }
 
-func TestGenomeBuildCurrentChrBehaviorProof(t *testing.T) {
+func TestGenomeBuildDetection(t *testing.T) {
+	tests := []struct {
+		name string
+		refs RefMap
+		want string
+	}{
+		{name: "chr-prefixed primary refs", refs: RefMap{0: "chr1", 1: "chr2"}, want: "b38"},
+		{name: "unprefixed primary refs", refs: RefMap{0: "1", 1: "2"}, want: "b37"},
+		{name: "excluded chr-prefixed refs only", refs: RefMap{0: "chrM", 1: "chrUn_KI270442v1", 2: "chr1_KI270706v1_random"}, want: "b37"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := (&test.refs).GenomeBuild(); got != test.want {
+				t.Fatalf("GenomeBuild() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestGenomeBuildChrPrefixesUseB38ZeroMask(t *testing.T) {
 	refMap := &RefMap{0: "chr1", 1: "chr2"}
-	if got := refMap.GenomeBuild(); got != "b37" {
-		t.Fatalf("GenomeBuild() = %q, want current characterized value b37", got)
+	if got := refMap.GenomeBuild(); got != "b38" {
+		t.Fatalf("GenomeBuild() = %q, want b38", got)
 	}
 	if !zeros["b37"][1][306] {
 		t.Fatal("test setup expects b37 zero mask at ref=1 bin=306")
@@ -125,17 +145,17 @@ func TestGenomeBuildCurrentChrBehaviorProof(t *testing.T) {
 	}
 	refIdxs[1].Intervals[307] = bgzf.Offset{File: 110}
 
-	currentBins := binSizes(cloneRefIndexes(refIdxs), refMap.GenomeBuild())
-	currentIdx := &Index{Bins: currentBins, RefMap: refMap, Sample: "chr-build-probe"}
-	if got := currentIdx.Sizes(true).String(); got != "" {
-		t.Fatalf("current chr-prefixed b37 behavior emitted rows, want none:\n%s", got)
+	forcedB37Bins := binSizes(cloneRefIndexes(refIdxs), "b37")
+	forcedB37Idx := &Index{Bins: forcedB37Bins, RefMap: refMap, Sample: "chr-build-probe"}
+	if got := forcedB37Idx.Sizes(true).String(); got != "" {
+		t.Fatalf("forced b37 output = %q, want no rows", got)
 	}
 
-	forcedB38Bins := binSizes(cloneRefIndexes(refIdxs), "b38")
-	forcedIdx := &Index{Bins: forcedB38Bins, RefMap: refMap, Sample: "chr-build-probe"}
+	detectedB38Bins := binSizes(cloneRefIndexes(refIdxs), refMap.GenomeBuild())
+	detectedIdx := &Index{Bins: detectedB38Bins, RefMap: refMap, Sample: "chr-build-probe"}
 	want := "chr2\t5013504\t5029888\t655360\tchr-build-probe"
-	if got := forcedIdx.Sizes(true).String(); got != want {
-		t.Fatalf("forced b38 output = %q, want %q", got, want)
+	if got := detectedIdx.Sizes(true).String(); got != want {
+		t.Fatalf("detected b38 output = %q, want %q", got, want)
 	}
 }
 

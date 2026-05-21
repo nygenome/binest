@@ -23,7 +23,7 @@ func (r *RefMap) GenomeBuild() string {
 		if excludeChroms.MatchString(refName) {
 			continue
 		}
-		if strings.HasSuffix(refName, "chr") {
+		if strings.HasPrefix(refName, "chr") {
 			return "b38"
 		}
 	}
