@@ -24,7 +24,13 @@ func RunChromCopy(idxsChan <-chan string, errChan chan<- error, doneChan chan<- 
 			continue
 		}
 
-		if _, err = fmt.Fprintln(w, idx.ChromCopy(ploidy)); err != nil {
+		copies, err := idx.ChromCopy(ploidy)
+		if err != nil {
+			errChan <- err
+			continue
+		}
+
+		if _, err = fmt.Fprintln(w, copies); err != nil {
 			errChan <- err
 			return
 		}

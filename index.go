@@ -1,6 +1,7 @@
 package binest
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -19,18 +20,16 @@ type Index struct {
 }
 
 // ChromCopy estimates the per chomosome copy number for the given index
-func (i *Index) ChromCopy(ploidy uint) *ChromCopy {
-	rawBins := i.Sizes(true)
-
-	// compute median byte size in autosomes
-	vals := make([]int64, 0, 200000)
-	for idx, refSizes := range rawBins.RawSizes {
-		if rawBins.Chroms[idx] == "X" || rawBins.Chroms[idx] == "Y" || rawBins.Chroms[idx] == "chrX" || rawBins.Chroms[idx] == "chrY" {
-			continue
-		}
-		vals = append(vals, refSizes...)
+func (i *Index) ChromCopy(ploidy uint) (*ChromCopy, error) {
+	rawBins, err := i.Sizes(true)
+	if err != nil {
+		return nil, err
 	}
-	autoMedianSize := medianI64(vals)
+
+	autoMedianSize, err := autosomalMedian(rawBins.Chroms, rawBins.RawSizes)
+	if err != nil {
+		return nil, err
+	}
 
 	normCopies := make([]float64, len(rawBins.Chroms))
 	estCopies := make([]uint8, len(rawBins.Chroms))
@@ -38,7 +37,10 @@ func (i *Index) ChromCopy(ploidy uint) *ChromCopy {
 	// divide per chromosome median byte size by the autosome
 	// median byte size to get approx. copy number for chrom.
 	for idx, refSizes := range rawBins.RawSizes {
-		refMedianSize := medianI64(refSizes)
+		refMedianSize, err := chromMedianOrZero(refSizes)
+		if err != nil {
+			return nil, fmt.Errorf("chromosome %s: %w", rawBins.Chroms[idx], err)
+		}
 		normCopies[idx] = float64(ploidy) * refMedianSize / autoMedianSize
 		estCopies[idx] = roundChromSize(normCopies[idx])
 	}
@@ -50,7 +52,7 @@ func (i *Index) ChromCopy(ploidy uint) *ChromCopy {
 		NormEsts: normCopies,
 	}
 
-	return &copies
+	return &copies, nil
 }
 
 func estimateSex(xNorm, yNorm float64, forceMF bool) *Sex {
@@ -108,18 +110,16 @@ func estimateSex(xNorm, yNorm float64, forceMF bool) *Sex {
 }
 
 // Sex estimates the sex genotype for the given index
-func (i *Index) Sex(ploidy uint, forceMF bool) *Sex {
-	rawBins := i.Sizes(true)
-
-	// compute median byte size in autosomes
-	vals := make([]int64, 0, 200000)
-	for idx, refSizes := range rawBins.RawSizes {
-		if rawBins.Chroms[idx] == "X" || rawBins.Chroms[idx] == "Y" || rawBins.Chroms[idx] == "chrX" || rawBins.Chroms[idx] == "chrY" {
-			continue
-		}
-		vals = append(vals, refSizes...)
+func (i *Index) Sex(ploidy uint, forceMF bool) (*Sex, error) {
+	rawBins, err := i.Sizes(true)
+	if err != nil {
+		return nil, err
 	}
-	autoMedianSize := medianI64(vals)
+
+	autoMedianSize, err := autosomalMedian(rawBins.Chroms, rawBins.RawSizes)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		xNorm float64
@@ -130,22 +130,28 @@ func (i *Index) Sex(ploidy uint, forceMF bool) *Sex {
 	// median byte size to get approx. copy number for chrom.
 	for idx, refSizes := range rawBins.RawSizes {
 		if rawBins.Chroms[idx] == "X" || rawBins.Chroms[idx] == "chrX" {
-			refMedianSize := medianI64(refSizes)
+			refMedianSize, err := chromMedianOrZero(refSizes)
+			if err != nil {
+				return nil, fmt.Errorf("chromosome %s: %w", rawBins.Chroms[idx], err)
+			}
 			xNorm = float64(ploidy) * (refMedianSize / autoMedianSize)
 		}
 		if rawBins.Chroms[idx] == "Y" || rawBins.Chroms[idx] == "chrY" {
-			refMedianSize := medianI64(refSizes)
+			refMedianSize, err := chromMedianOrZero(refSizes)
+			if err != nil {
+				return nil, fmt.Errorf("chromosome %s: %w", rawBins.Chroms[idx], err)
+			}
 			yNorm = float64(ploidy) * (refMedianSize / autoMedianSize)
 		}
 	}
 
 	result := estimateSex(xNorm, yNorm, forceMF)
 	result.Sample = i.Sample
-	return result
+	return result, nil
 }
 
 // Sizes estimates the raw/normalized per bin sizes for the given index
-func (i *Index) Sizes(rawSize bool) *Sizes {
+func (i *Index) Sizes(rawSize bool) (*Sizes, error) {
 	chroms := make([]string, 0, len(*i.Bins))
 	starts := make([][]uint64, 0, len(*i.Bins))
 	rawBins := make([][]int64, 0, len(*i.Bins))
@@ -168,7 +174,10 @@ func (i *Index) Sizes(rawSize bool) *Sizes {
 		chroms = append(chroms, chromName)
 		currBins := make([]int64, 0, len(refBins))
 		currStarts := make([]uint64, 0, len(refBins))
-		for _, binSize := range refBins {
+		for binNum, binSize := range refBins {
+			if binSize < 0 {
+				return nil, fmt.Errorf("%w: negative bin size for ref %d bin %d", errMalformedIndex, refID, binNum)
+			}
 			if binSize > 0 {
 				currBins = append(currBins, binSize)
 				currStarts = append(currStarts, position)
@@ -189,11 +198,13 @@ func (i *Index) Sizes(rawSize bool) *Sizes {
 	}
 
 	if rawSize {
-		return data
+		return data, nil
 	}
 
-	data.Normalize()
-	return data
+	if err := data.Normalize(); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // NewIndex builds a new index given the path to index file and optionally path to reference fasta index.

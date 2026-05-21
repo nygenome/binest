@@ -24,7 +24,13 @@ func RunSex(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool, 
 			continue
 		}
 
-		if _, err = fmt.Fprintln(w, idx.Sex(ploidy, forceMF)); err != nil {
+		sex, err := idx.Sex(ploidy, forceMF)
+		if err != nil {
+			errChan <- err
+			continue
+		}
+
+		if _, err = fmt.Fprintln(w, sex); err != nil {
 			errChan <- err
 			return
 		}
