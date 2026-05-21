@@ -32,11 +32,12 @@ type giabGolden struct {
 }
 
 type outputGolden struct {
-	SHA256 string   `json:"sha256"`
-	Lines  int      `json:"lines"`
-	Header string   `json:"header"`
-	First  []string `json:"first"`
-	Last   []string `json:"last"`
+	SHA256    string   `json:"sha256"`
+	Lines     int      `json:"lines"`
+	Header    string   `json:"header"`
+	First     []string `json:"first"`
+	Last      []string `json:"last"`
+	Sentinels []string `json:"sentinels,omitempty"`
 }
 
 type readBinsGolden struct {
@@ -67,13 +68,19 @@ func TestGIABReadBinsMetrics(t *testing.T) {
 	cache := giabCacheDir(t)
 	golden := loadGIABGolden(t)
 
-	for filename, want := range golden.ReadBins {
+	for _, fixture := range loadGIABManifest(t) {
+		filename := fixture.Filename
+		want := golden.ReadBins[filename]
 		t.Run(filename, func(t *testing.T) {
 			bins, err := ReadBins(filepath.Join(cache, filename), "b37")
 			if err != nil {
 				t.Fatalf("ReadBins(%q) error = %v", filename, err)
 			}
 			got := summarizeBins(bins)
+			if updateGIABGoldens() {
+				updateReadBinsGolden(t, filename, got)
+				return
+			}
 			if got != want {
 				t.Fatalf("ReadBins(%q) summary = %#v, want %#v", filename, got, want)
 			}
@@ -96,8 +103,37 @@ func TestGIABSizeRawGoldens(t *testing.T) {
 	manifest := loadGIABManifest(t)
 	faiPath := filepath.Join("testdata", "giab", "grch38_1_22_xy_m.fai")
 
-	assertOutputGolden(t, "size_bai_raw", runGIABSizeRaw(t, giabPaths(cache, manifest, "bai"), faiPath), golden.Outputs["size_bai_raw"])
-	assertOutputGolden(t, "size_tbi_raw", runGIABSizeRaw(t, giabPaths(cache, manifest, "tbi"), faiPath), golden.Outputs["size_tbi_raw"])
+	assertOutputGolden(t, "size_bai_raw", runGIABSize(t, giabPaths(cache, manifest, "bai"), faiPath, true), golden.Outputs["size_bai_raw"])
+	assertOutputGolden(t, "size_tbi_raw", runGIABSize(t, giabPaths(cache, manifest, "tbi"), faiPath, true), golden.Outputs["size_tbi_raw"])
+}
+
+func TestGIABSizeNormalizedGoldens(t *testing.T) {
+	cache := giabCacheDir(t)
+	golden := loadGIABGolden(t)
+	manifest := loadGIABManifest(t)
+	faiPath := filepath.Join("testdata", "giab", "grch38_1_22_xy_m.fai")
+
+	assertOutputGolden(t, "size_bai_norm", runGIABSize(t, giabPaths(cache, manifest, "bai"), faiPath, false), golden.Outputs["size_bai_norm"])
+	assertOutputGolden(t, "size_tbi_norm", runGIABSize(t, giabPaths(cache, manifest, "tbi"), faiPath, false), golden.Outputs["size_tbi_norm"])
+}
+
+func TestGIABChromCopyGoldens(t *testing.T) {
+	cache := giabCacheDir(t)
+	golden := loadGIABGolden(t)
+	manifest := loadGIABManifest(t)
+	faiPath := filepath.Join("testdata", "giab", "grch38_1_22_xy_m.fai")
+
+	assertOutputGolden(t, "chromcopy_bai", runGIABChromCopy(t, giabPaths(cache, manifest, "bai"), faiPath), golden.Outputs["chromcopy_bai"])
+}
+
+func TestGIABSexGoldens(t *testing.T) {
+	cache := giabCacheDir(t)
+	golden := loadGIABGolden(t)
+	manifest := loadGIABManifest(t)
+	faiPath := filepath.Join("testdata", "giab", "grch38_1_22_xy_m.fai")
+
+	assertOutputGolden(t, "sex_bai", runGIABSex(t, giabPaths(cache, manifest, "bai"), faiPath, false), golden.Outputs["sex_bai"])
+	assertOutputGolden(t, "sex_bai_force_mf", runGIABSex(t, giabPaths(cache, manifest, "bai"), faiPath, true), golden.Outputs["sex_bai_force_mf"])
 }
 
 func giabCacheDir(t *testing.T) string {
@@ -191,10 +227,24 @@ func runGIABNumreads(t *testing.T, paths []string, includeUnmapped bool) string 
 	})
 }
 
-func runGIABSizeRaw(t *testing.T, paths []string, faiPath string) string {
+func runGIABSize(t *testing.T, paths []string, faiPath string, raw bool) string {
 	t.Helper()
 	return runGIABCommand(t, paths, func(idxs <-chan string, errs chan<- error, done chan<- bool, out *bytes.Buffer) {
-		RunSize(idxs, errs, done, out, faiPath, true)
+		RunSize(idxs, errs, done, out, faiPath, raw)
+	})
+}
+
+func runGIABChromCopy(t *testing.T, paths []string, faiPath string) string {
+	t.Helper()
+	return runGIABCommand(t, paths, func(idxs <-chan string, errs chan<- error, done chan<- bool, out *bytes.Buffer) {
+		RunChromCopy(idxs, errs, done, out, faiPath, 2)
+	})
+}
+
+func runGIABSex(t *testing.T, paths []string, faiPath string, forceMF bool) string {
+	t.Helper()
+	return runGIABCommand(t, paths, func(idxs <-chan string, errs chan<- error, done chan<- bool, out *bytes.Buffer) {
+		RunSex(idxs, errs, done, out, faiPath, 2, forceMF)
 	})
 }
 
@@ -226,6 +276,11 @@ func runGIABCommand(t *testing.T, paths []string, runner func(<-chan string, cha
 func assertOutputGolden(t *testing.T, name string, got string, want outputGolden) {
 	t.Helper()
 
+	if updateGIABGoldens() {
+		updateOutputGolden(t, name, summarizeOutput(name, got))
+		return
+	}
+
 	sum := sha256.Sum256([]byte(got))
 	if gotSHA := hex.EncodeToString(sum[:]); gotSHA != want.SHA256 {
 		t.Fatalf("%s sha256 = %s, want %s", name, gotSHA, want.SHA256)
@@ -244,6 +299,25 @@ func assertOutputGolden(t *testing.T, name string, got string, want outputGolden
 	}
 	if gotLast := suffix(lines, len(want.Last)); !reflect.DeepEqual(gotLast, want.Last) {
 		t.Fatalf("%s last lines = %#v, want %#v", name, gotLast, want.Last)
+	}
+
+	for _, sentinel := range want.Sentinels {
+		if !containsLine(lines, sentinel) {
+			t.Fatalf("%s missing sentinel row %q", name, sentinel)
+		}
+	}
+}
+
+func summarizeOutput(name string, out string) outputGolden {
+	sum := sha256.Sum256([]byte(out))
+	lines := splitOutputLines(out)
+	return outputGolden{
+		SHA256:    hex.EncodeToString(sum[:]),
+		Lines:     len(lines),
+		Header:    firstLine(lines),
+		First:     prefix(lines, 4),
+		Last:      suffix(lines, 3),
+		Sentinels: selectSentinels(name, lines),
 	}
 }
 
@@ -274,6 +348,119 @@ func suffix(lines []string, n int) []string {
 		return append([]string(nil), lines...)
 	}
 	return append([]string(nil), lines[len(lines)-n:]...)
+}
+
+func containsLine(lines []string, want string) bool {
+	for _, line := range lines {
+		if line == want {
+			return true
+		}
+	}
+	return false
+}
+
+func selectSentinels(name string, lines []string) []string {
+	switch name {
+	case "size_bai_raw", "size_bai_norm":
+		return firstMatchingLines(lines,
+			[]string{"chr2\t", "\tHG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x"},
+			[]string{"chrX\t", "\tHG002.GRCh38.2x250"},
+			[]string{"chrY\t", "\tHG003.GRCh38.2x250"},
+			[]string{"chrY\t", "\tHG004.GRCh38.2x250"},
+		)
+	case "size_tbi_raw", "size_tbi_norm":
+		return firstMatchingLines(lines,
+			[]string{"chr1\t", "\tHG001_GRCh38_1_22_v4.2.1_benchmark"},
+			[]string{"chr7\t", "\tHG002_GRCh38_1_22_v4.2.1_benchmark"},
+			[]string{"chr12\t", "\tHG003_GRCh38_1_22_v4.2.1_benchmark"},
+			[]string{"chr22\t", "\tHG004_GRCh38_1_22_v4.2.1_benchmark"},
+		)
+	case "chromcopy_bai":
+		return firstMatchingLines(lines,
+			[]string{"HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchr1\t"},
+			[]string{"HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x\tchrX\t"},
+			[]string{"HG002.GRCh38.2x250\tchrY\t"},
+			[]string{"HG004.GRCh38.2x250\tchrX\t"},
+		)
+	case "sex_bai", "sex_bai_force_mf":
+		return dataLines(lines)
+	default:
+		return nil
+	}
+}
+
+func firstMatchingLines(lines []string, matches ...[]string) []string {
+	out := make([]string, 0, len(matches))
+	for _, requiredParts := range matches {
+		for _, line := range lines {
+			if lineContainsAll(line, requiredParts) {
+				out = append(out, line)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func lineContainsAll(line string, parts []string) bool {
+	for _, part := range parts {
+		if !strings.Contains(line, part) {
+			return false
+		}
+	}
+	return true
+}
+
+func dataLines(lines []string) []string {
+	if len(lines) <= 1 {
+		return nil
+	}
+	return append([]string(nil), lines[1:]...)
+}
+
+func updateGIABGoldens() bool {
+	return os.Getenv("BINEST_UPDATE_GIAB_GOLDENS") == "1"
+}
+
+func updateOutputGolden(t *testing.T, name string, got outputGolden) {
+	t.Helper()
+
+	golden := loadGIABGolden(t)
+	if golden.Outputs == nil {
+		golden.Outputs = map[string]outputGolden{}
+	}
+	golden.Outputs[name] = got
+	writeGIABGolden(t, golden)
+}
+
+func updateReadBinsGolden(t *testing.T, filename string, got readBinsGolden) {
+	t.Helper()
+
+	golden := loadGIABGolden(t)
+	if golden.ReadBins == nil {
+		golden.ReadBins = map[string]readBinsGolden{}
+	}
+	golden.ReadBins[filename] = got
+	writeGIABGolden(t, golden)
+}
+
+func writeGIABGolden(t *testing.T, golden giabGolden) {
+	t.Helper()
+
+	data, err := json.MarshalIndent(golden, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal GIAB golden file: %v", err)
+	}
+	data = append(data, '\n')
+
+	path := filepath.Join("testdata", "golden", "giab_real.json")
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
+		t.Fatalf("write temporary GIAB golden file: %v", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		t.Fatalf("replace GIAB golden file: %v", err)
+	}
 }
 
 func summarizeBins(bins *Bins) readBinsGolden {
