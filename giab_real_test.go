@@ -72,7 +72,7 @@ func TestGIABReadBinsMetrics(t *testing.T) {
 		filename := fixture.Filename
 		want := golden.ReadBins[filename]
 		t.Run(filename, func(t *testing.T) {
-			bins, err := ReadBins(filepath.Join(cache, filename), "b37")
+			bins, err := ReadBins(filepath.Join(cache, filename), "b38")
 			if err != nil {
 				t.Fatalf("ReadBins(%q) error = %v", filename, err)
 			}

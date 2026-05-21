@@ -116,6 +116,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (status int) 
 	flushErr := out.Flush()
 	if err == nil {
 		err = flushErr
+	} else if flushErr != nil {
+		err = errors.Join(err, flushErr)
 	}
 	if err == nil {
 		return 0
@@ -129,7 +131,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (status int) 
 		}
 		return 1
 	}
-	panic(err)
+	if _, writeErr := fmt.Fprintln(stderr, err); writeErr != nil {
+		return 1
+	}
+	return 1
 }
 
 func newParser(app *cli, stdout, stderr io.Writer) (*kong.Kong, error) {

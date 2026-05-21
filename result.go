@@ -1,12 +1,16 @@
 package binest
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
 	"git.nygenome.org/rmusunuri/binest/internal"
 )
+
+var errInvalidAutosomeMedian = errors.New("invalid autosomal normalization median")
 
 // ChromCopy holds the per chromosome copy estimate result for a single index
 type ChromCopy struct {
@@ -53,19 +57,14 @@ type Sizes struct {
 	NormEsts [][]float64
 }
 
-// Normalize normalizes the raw sizes read from the index
-func (s *Sizes) Normalize() {
-	s.NormEsts = make([][]float64, len(s.Chroms))
-
-	// Compute the autosomes byte size median
-	vals := make([]int64, 0, 200000)
-	for idx, refSizes := range s.RawSizes {
-		if s.Chroms[idx] == "X" || s.Chroms[idx] == "Y" || s.Chroms[idx] == "chrX" || s.Chroms[idx] == "chrY" {
-			continue
-		}
-		vals = append(vals, refSizes...)
+// Normalize normalizes the raw sizes read from the index.
+func (s *Sizes) Normalize() error {
+	medianBinSize, err := autosomalMedian(s.Chroms, s.RawSizes)
+	if err != nil {
+		return err
 	}
-	medianBinSize := medianI64(vals)
+
+	s.NormEsts = make([][]float64, len(s.Chroms))
 
 	// Normalize by dividing per bin byte size by autosomes byte size median
 	for refID, refSizes := range s.RawSizes {
@@ -74,6 +73,62 @@ func (s *Sizes) Normalize() {
 			s.NormEsts[refID][binIdx] = float64(binRawSize) / medianBinSize
 		}
 	}
+	return nil
+}
+
+func autosomalMedian(chroms []string, rawSizes [][]int64) (float64, error) {
+	if len(chroms) != len(rawSizes) {
+		return 0, fmt.Errorf("%w: chromosome and raw-size counts differ", errInvalidAutosomeMedian)
+	}
+
+	vals := make([]int64, 0, 200000)
+	for idx, refSizes := range rawSizes {
+		for binIdx, rawSize := range refSizes {
+			if rawSize < 0 {
+				return 0, fmt.Errorf("%w: negative raw size for chrom %s bin %d", errMalformedIndex, chroms[idx], binIdx)
+			}
+		}
+		if isSexChrom(chroms[idx]) {
+			continue
+		}
+		vals = append(vals, refSizes...)
+	}
+	if len(vals) == 0 {
+		return 0, fmt.Errorf("%w: no usable autosomal bins", errInvalidAutosomeMedian)
+	}
+
+	median := medianI64(vals)
+	if !isPositiveFinite(median) {
+		return 0, fmt.Errorf("%w: got %s", errInvalidAutosomeMedian, strconv.FormatFloat(median, 'f', -1, 64))
+	}
+	return median, nil
+}
+
+func chromMedianOrZero(rawSizes []int64) (float64, error) {
+	if len(rawSizes) == 0 {
+		return 0, nil
+	}
+
+	median := medianI64(append([]int64(nil), rawSizes...))
+	if median == 0 {
+		return 0, nil
+	}
+	if median < 0 || !isFinite(median) {
+		return 0, fmt.Errorf("invalid chromosome median: got %s", strconv.FormatFloat(median, 'f', -1, 64))
+	}
+	return median, nil
+}
+
+func isSexChrom(chrom string) bool {
+	return chrom == "X" || chrom == "Y" || chrom == "chrX" || chrom == "chrY"
+}
+
+func isPositiveFinite(v float64) bool {
+	return v > 0 && isFinite(v)
+}
+
+func isFinite(v float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0)
 }
 
 func (s *Sizes) String() string {

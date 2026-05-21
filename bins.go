@@ -36,8 +36,11 @@ func init() {
 	}
 }
 
-// errUnsupportedIndex is returned when trying to read an unknown/unsupported index.
-var errUnsupportedIndex = errors.New("unknown/unsupported index")
+var (
+	// errUnsupportedIndex is returned when trying to read an unknown/unsupported index.
+	errUnsupportedIndex = errors.New("unknown/unsupported index")
+	errMalformedIndex   = errors.New("malformed index")
+)
 
 func unsupportedIndexError(idxPath string) error {
 	return fmt.Errorf("%w: %s", errUnsupportedIndex, idxPath)
@@ -54,20 +57,20 @@ func ReadBins(idxPath, build string) (*Bins, error) {
 		if refIdxs, err := baiRefIdxs(idxPath); err != nil {
 			return nil, err
 		} else {
-			return binSizes(refIdxs, build), nil
+			return binSizes(refIdxs, build)
 		}
 	case TbiIndex:
 		if refIdxs, err := tbiRefIdxs(idxPath); err != nil {
 			return nil, err
 		} else {
-			return binSizes(refIdxs, build), nil
+			return binSizes(refIdxs, build)
 		}
 	}
 	return nil, unsupportedIndexError(idxPath)
 }
 
-// binSizes returns sizes of all bins from the refIdxs
-func binSizes(refIdxs []internal.RefIndex, build string) *Bins {
+// binSizes returns sizes of all bins from the refIdxs.
+func binSizes(refIdxs []internal.RefIndex, build string) (*Bins, error) {
 	bins := make(Bins, len(refIdxs))
 
 	for refNum, refIdx := range refIdxs {
@@ -78,17 +81,24 @@ func binSizes(refIdxs []internal.RefIndex, build string) *Bins {
 
 		bins[refNum] = make([]int64, len(refIdx.Intervals)-1)
 		for binNum, intervalEnd := range refIdx.Intervals[1:] {
+			intervalStart := refIdx.Intervals[binNum]
+			startOffset := vOffset(intervalStart)
+			endOffset := vOffset(intervalEnd)
+			if endOffset < startOffset {
+				return nil, fmt.Errorf("%w: non-monotonic interval offsets for ref %d bin %d", errMalformedIndex, refNum, binNum)
+			}
+
 			if isZero, found := zeros[build][refNum][binNum]; found && isZero {
 				continue
 			}
 
-			bins[refNum][binNum] = vOffset(intervalEnd) - vOffset(refIdx.Intervals[binNum])
+			bins[refNum][binNum] = endOffset - startOffset
 		}
 
 		refIdx.Bins, refIdx.Intervals = nil, nil
 	}
 
-	return &bins
+	return &bins, nil
 }
 
 // vOffset returns the virtual file offset from a BGZF offset.
@@ -134,13 +144,14 @@ func tbiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 		return nil, err
 	}
 
-	idx, err := tabix.ReadFrom(tbxRdr)
-	closeErr := fh.Close()
-	if err != nil {
-		return nil, err
+	idx, readErr := tabix.ReadFrom(tbxRdr)
+	tbxCloseErr := tbxRdr.Close()
+	fhCloseErr := fh.Close()
+	if readErr != nil {
+		return nil, errors.Join(readErr, tbxCloseErr, fhCloseErr)
 	}
-	if closeErr != nil {
-		return nil, closeErr
+	if tbxCloseErr != nil || fhCloseErr != nil {
+		return nil, errors.Join(tbxCloseErr, fhCloseErr)
 	}
 
 	idxRefs := reflect.ValueOf(*idx).FieldByName("idx").FieldByName("Refs")

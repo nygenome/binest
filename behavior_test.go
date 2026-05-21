@@ -101,7 +101,11 @@ func TestMedianI64CorrectEvenLengthBehavior(t *testing.T) {
 	bins := Bins{{10, 20}, {30, 40}, {25}, {25}}
 	refMap := &RefMap{0: "1", 1: "2", 2: "X", 3: "Y"}
 	idx := &Index{Bins: &bins, RefMap: refMap, Sample: "median-probe"}
-	gotTSV := idx.Sizes(false).String()
+	sizes, err := idx.Sizes(false)
+	if err != nil {
+		t.Fatalf("Sizes(false) error = %v", err)
+	}
+	gotTSV := sizes.String()
 
 	correctedRows := []string{
 		"1\t0\t16384\t0.4\tmedian-probe",
@@ -157,16 +161,30 @@ func TestGenomeBuildChrPrefixesUseB38ZeroMask(t *testing.T) {
 	}
 	refIdxs[1].Intervals[307] = bgzf.Offset{File: 110}
 
-	forcedB37Bins := binSizes(cloneRefIndexes(refIdxs), "b37")
+	forcedB37Bins, err := binSizes(cloneRefIndexes(refIdxs), "b37")
+	if err != nil {
+		t.Fatalf("binSizes(b37) error = %v", err)
+	}
 	forcedB37Idx := &Index{Bins: forcedB37Bins, RefMap: refMap, Sample: "chr-build-probe"}
-	if got := forcedB37Idx.Sizes(true).String(); got != "" {
+	forcedSizes, err := forcedB37Idx.Sizes(true)
+	if err != nil {
+		t.Fatalf("forced b37 Sizes(true) error = %v", err)
+	}
+	if got := forcedSizes.String(); got != "" {
 		t.Fatalf("forced b37 output = %q, want no rows", got)
 	}
 
-	detectedB38Bins := binSizes(cloneRefIndexes(refIdxs), refMap.GenomeBuild())
+	detectedB38Bins, err := binSizes(cloneRefIndexes(refIdxs), refMap.GenomeBuild())
+	if err != nil {
+		t.Fatalf("binSizes(b38) error = %v", err)
+	}
 	detectedIdx := &Index{Bins: detectedB38Bins, RefMap: refMap, Sample: "chr-build-probe"}
 	want := "chr2\t5013504\t5029888\t655360\tchr-build-probe"
-	if got := detectedIdx.Sizes(true).String(); got != want {
+	detectedSizes, err := detectedIdx.Sizes(true)
+	if err != nil {
+		t.Fatalf("detected b38 Sizes(true) error = %v", err)
+	}
+	if got := detectedSizes.String(); got != want {
 		t.Fatalf("detected b38 output = %q, want %q", got, want)
 	}
 }
@@ -176,7 +194,10 @@ func TestSizesChromCopyAndSexCharacterization(t *testing.T) {
 	refMap := &RefMap{0: "1", 1: "X", 2: "Y", 3: "chrM", 4: "GL0001"}
 	idx := &Index{Bins: &bins, RefMap: refMap, Sample: "synthetic"}
 
-	raw := idx.Sizes(true)
+	raw, err := idx.Sizes(true)
+	if err != nil {
+		t.Fatalf("Sizes(true) error = %v", err)
+	}
 	if !reflect.DeepEqual(raw.Chroms, []string{"1", "X", "Y"}) {
 		t.Fatalf("raw.Chroms = %#v, want 1/X/Y only", raw.Chroms)
 	}
@@ -184,7 +205,10 @@ func TestSizesChromCopyAndSexCharacterization(t *testing.T) {
 		t.Fatalf("raw.Starts[0] = %#v", raw.Starts[0])
 	}
 
-	norm := idx.Sizes(false)
+	norm, err := idx.Sizes(false)
+	if err != nil {
+		t.Fatalf("Sizes(false) error = %v", err)
+	}
 	if got := norm.NormEsts[0][0]; got != 1 {
 		t.Fatalf("autosome normalized value = %v, want 1", got)
 	}
@@ -195,16 +219,25 @@ func TestSizesChromCopyAndSexCharacterization(t *testing.T) {
 		t.Fatalf("Y normalized value = %v, want 0.5", got)
 	}
 
-	copy := idx.ChromCopy(2)
+	copy, err := idx.ChromCopy(2)
+	if err != nil {
+		t.Fatalf("ChromCopy() error = %v", err)
+	}
 	if !reflect.DeepEqual(copy.CopyNums, []uint8{2, 4, 1}) {
 		t.Fatalf("copy.CopyNums = %#v, want [2 4 1]", copy.CopyNums)
 	}
 
-	sex := idx.Sex(2, false)
+	sex, err := idx.Sex(2, false)
+	if err != nil {
+		t.Fatalf("Sex(false) error = %v", err)
+	}
 	if sex.Gender != "unknown" || sex.Genotype != "XXXY" || sex.NormXEst != 4 || sex.NormYEst != 1 {
 		t.Fatalf("Sex() = %#v, want unknown XXXY 4/1", sex)
 	}
-	forced := idx.Sex(2, true)
+	forced, err := idx.Sex(2, true)
+	if err != nil {
+		t.Fatalf("Sex(true) error = %v", err)
+	}
 	if forced.Gender != "male" {
 		t.Fatalf("forced Sex().Gender = %q, want male", forced.Gender)
 	}
@@ -289,6 +322,97 @@ func TestRunSizePropagatesWriterError(t *testing.T) {
 func TestMeanI64EmptyCurrentBehavior(t *testing.T) {
 	if got := meanI64(nil); !math.IsNaN(got) {
 		t.Fatalf("meanI64(nil) = %v, want NaN under current behavior", got)
+	}
+}
+
+func TestNormalizedOperationsRequireUsableAutosomes(t *testing.T) {
+	bins := Bins{{20}, {10}}
+	refMap := &RefMap{0: "X", 1: "Y"}
+	idx := &Index{Bins: &bins, RefMap: refMap, Sample: "no-autosomes"}
+
+	if _, err := idx.Sizes(false); !errors.Is(err, errInvalidAutosomeMedian) {
+		t.Fatalf("Sizes(false) error = %v, want %v", err, errInvalidAutosomeMedian)
+	}
+	if _, err := idx.ChromCopy(2); !errors.Is(err, errInvalidAutosomeMedian) {
+		t.Fatalf("ChromCopy() error = %v, want %v", err, errInvalidAutosomeMedian)
+	}
+	if _, err := idx.Sex(2, false); !errors.Is(err, errInvalidAutosomeMedian) {
+		t.Fatalf("Sex() error = %v, want %v", err, errInvalidAutosomeMedian)
+	}
+}
+
+func TestNormalizeRejectsZeroAutosomeMedian(t *testing.T) {
+	sizes := &Sizes{
+		Sample:   "zero-autosome",
+		Chroms:   []string{"1", "X"},
+		RawSizes: [][]int64{{0, 0}, {10}},
+	}
+
+	if err := sizes.Normalize(); !errors.Is(err, errInvalidAutosomeMedian) {
+		t.Fatalf("Normalize() error = %v, want %v", err, errInvalidAutosomeMedian)
+	}
+	if sizes.NormEsts != nil {
+		t.Fatalf("Normalize() mutated NormEsts on error: %#v", sizes.NormEsts)
+	}
+}
+
+func TestNormalizeRejectsNegativeRawSizes(t *testing.T) {
+	sizes := &Sizes{
+		Sample:   "negative-raw",
+		Chroms:   []string{"1"},
+		RawSizes: [][]int64{{10, -1}},
+	}
+
+	if err := sizes.Normalize(); !errors.Is(err, errMalformedIndex) {
+		t.Fatalf("Normalize() error = %v, want %v", err, errMalformedIndex)
+	}
+}
+
+func TestEmptyChromosomeBinsProduceZeroDerivedEstimates(t *testing.T) {
+	bins := Bins{{10, 20}, {}, {}}
+	refMap := &RefMap{0: "1", 1: "X", 2: "Y"}
+	idx := &Index{Bins: &bins, RefMap: refMap, Sample: "empty-sex-chroms"}
+
+	copy, err := idx.ChromCopy(2)
+	if err != nil {
+		t.Fatalf("ChromCopy() error = %v", err)
+	}
+	if !reflect.DeepEqual(copy.CopyNums, []uint8{2, 0, 0}) {
+		t.Fatalf("copy.CopyNums = %#v, want [2 0 0]", copy.CopyNums)
+	}
+	if !reflect.DeepEqual(copy.NormEsts, []float64{2, 0, 0}) {
+		t.Fatalf("copy.NormEsts = %#v, want [2 0 0]", copy.NormEsts)
+	}
+
+	sex, err := idx.Sex(2, false)
+	if err != nil {
+		t.Fatalf("Sex() error = %v", err)
+	}
+	if sex.NormXEst != 0 || sex.NormYEst != 0 || sex.Gender != "unknown" {
+		t.Fatalf("Sex() = %#v, want zero X/Y estimates and unknown gender", sex)
+	}
+}
+
+func TestBinSizesRejectNonMonotonicIntervals(t *testing.T) {
+	refIdxs := []internal.RefIndex{{
+		Intervals: []bgzf.Offset{
+			{File: 10},
+			{File: 9},
+		},
+	}}
+
+	if _, err := binSizes(refIdxs, "b38"); !errors.Is(err, errMalformedIndex) {
+		t.Fatalf("binSizes() error = %v, want %v", err, errMalformedIndex)
+	}
+}
+
+func TestSizesRejectNegativeRawBins(t *testing.T) {
+	bins := Bins{{-1}}
+	refMap := &RefMap{0: "1"}
+	idx := &Index{Bins: &bins, RefMap: refMap, Sample: "negative-bin"}
+
+	if _, err := idx.Sizes(true); !errors.Is(err, errMalformedIndex) {
+		t.Fatalf("Sizes(true) error = %v, want %v", err, errMalformedIndex)
 	}
 }
 

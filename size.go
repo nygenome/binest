@@ -28,7 +28,13 @@ func RunSize(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool,
 			continue
 		}
 
-		if _, err = fmt.Fprintln(w, idx.Sizes(rawSize)); err != nil {
+		sizes, err := idx.Sizes(rawSize)
+		if err != nil {
+			errChan <- err
+			continue
+		}
+
+		if _, err = fmt.Fprintln(w, sizes); err != nil {
 			errChan <- err
 			return
 		}

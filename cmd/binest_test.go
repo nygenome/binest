@@ -66,24 +66,79 @@ func TestRunNoIndexes(t *testing.T) {
 
 func TestRunFlushesStdoutOnCommandError(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	var recovered any
 
-	func() {
-		defer func() {
-			recovered = recover()
-		}()
-		_ = run([]string{"size"}, strings.NewReader("missing.bai\n"), &stdout, &stderr)
-	}()
+	code := run([]string{"size"}, strings.NewReader("missing.bai\n"), &stdout, &stderr)
 
-	if recovered == nil {
-		t.Fatal("run() did not panic for missing index")
+	if code != 1 {
+		t.Fatalf("run() exit code = %d, want 1", code)
 	}
 	want := "CHROM\tSTART\tEND\tNORMALIZED_SIZE\tSAMPLE\n"
 	if stdout.String() != want {
 		t.Fatalf("stdout = %q, want flushed header %q", stdout.String(), want)
 	}
-	if !strings.Contains(stderr.String(), versionString()) {
-		t.Fatalf("stderr does not contain version:\n%s", stderr.String())
+	for _, want := range []string{versionString(), "no bam/fai file provided", "missing.bai"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("stderr does not contain %q:\n%s", want, stderr.String())
+		}
+	}
+	if strings.Contains(stderr.String(), "panic:") {
+		t.Fatalf("stderr contains panic stack:\n%s", stderr.String())
+	}
+}
+
+func TestRunReportsCleanStdinIndexErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		stdin      io.Reader
+		wantStdout string
+		wantStderr []string
+	}{
+		{
+			name:       "unsupported stdin index",
+			args:       []string{"size"},
+			stdin:      strings.NewReader("sample.txt\n"),
+			wantStdout: "CHROM\tSTART\tEND\tNORMALIZED_SIZE\tSAMPLE\n",
+			wantStderr: []string{"unknown/unsupported index", "sample.txt"},
+		},
+		{
+			name:       "missing fai for tbi",
+			args:       []string{"size"},
+			stdin:      strings.NewReader(touchTempFile(t, "sample.tbi") + "\n"),
+			wantStdout: "CHROM\tSTART\tEND\tNORMALIZED_SIZE\tSAMPLE\n",
+			wantStderr: []string{"open : no such file or directory"},
+		},
+		{
+			name:       "missing bam and fai for bai",
+			args:       []string{"size"},
+			stdin:      strings.NewReader(touchTempFile(t, "sample.bai") + "\n"),
+			wantStdout: "CHROM\tSTART\tEND\tNORMALIZED_SIZE\tSAMPLE\n",
+			wantStderr: []string{"no bam/fai file provided", "sample.bai"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code := run(test.args, test.stdin, &stdout, &stderr)
+			if code != 1 {
+				t.Fatalf("run() exit code = %d, want 1", code)
+			}
+			if stdout.String() != test.wantStdout {
+				t.Fatalf("stdout = %q, want %q", stdout.String(), test.wantStdout)
+			}
+			if !strings.Contains(stderr.String(), versionString()) {
+				t.Fatalf("stderr does not contain version:\n%s", stderr.String())
+			}
+			for _, want := range test.wantStderr {
+				if !strings.Contains(stderr.String(), want) {
+					t.Fatalf("stderr does not contain %q:\n%s", want, stderr.String())
+				}
+			}
+			if strings.Contains(stderr.String(), "panic:") {
+				t.Fatalf("stderr contains panic stack:\n%s", stderr.String())
+			}
+		})
 	}
 }
 
@@ -192,6 +247,31 @@ func TestRunIndexesStreamsStdinBeforeEOF(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("runIndexes did not finish after stdin EOF")
+	}
+}
+
+func TestRunIndexesContinuesMixedSuccessAndErrorInputs(t *testing.T) {
+	var processed []string
+	wantErr := errors.New("bad index")
+
+	err := runIndexes([]string{"good.bai", "bad.bai", "later.bai"}, nil, func(idxs <-chan string, errs chan<- error, done chan<- bool) {
+		defer func() {
+			done <- true
+		}()
+		for idxPath := range idxs {
+			processed = append(processed, idxPath)
+			if idxPath == "bad.bai" {
+				errs <- wantErr
+			}
+		}
+	})
+
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("runIndexes() error = %v, want %v", err, wantErr)
+	}
+	wantProcessed := []string{"good.bai", "bad.bai", "later.bai"}
+	if !reflect.DeepEqual(processed, wantProcessed) {
+		t.Fatalf("processed indexes = %#v, want %#v", processed, wantProcessed)
 	}
 }
 
