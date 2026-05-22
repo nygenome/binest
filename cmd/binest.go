@@ -98,6 +98,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (status int) 
 	}
 
 	ctx, err := parser.Parse(args)
+	if handled, status := handleRootParseError(err, stderr); handled {
+		return status
+	}
 	parser.FatalIfErrorf(err)
 
 	if _, err = fmt.Fprint(stderr, versionString()); err != nil {
@@ -135,6 +138,23 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (status int) 
 		return 1
 	}
 	return 1
+}
+
+func handleRootParseError(err error, stderr io.Writer) (bool, int) {
+	var parseErr *kong.ParseError
+	if !errors.As(err, &parseErr) || parseErr.Context == nil || parseErr.Context.Selected() != nil {
+		return false, 0
+	}
+	if usageErr := printUsageTo(stderr, parseErr.Context); usageErr != nil {
+		panic(usageErr)
+	}
+	if _, writeErr := fmt.Fprintln(stderr); writeErr != nil {
+		return true, 1
+	}
+	if _, writeErr := fmt.Fprintf(stderr, "binest: error: %s\n", parseErr); writeErr != nil {
+		return true, 1
+	}
+	return true, parseErr.ExitCode()
 }
 
 func newParser(app *cli, stdout, stderr io.Writer) (*kong.Kong, error) {

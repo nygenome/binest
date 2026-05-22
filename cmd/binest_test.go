@@ -46,6 +46,84 @@ func TestRunHelp(t *testing.T) {
 	}
 }
 
+func TestRunRootParseErrorsPrintFullHelpToStderr(t *testing.T) {
+	var helpStdout, helpStderr bytes.Buffer
+	helpCode := run([]string{"--help"}, nil, &helpStdout, &helpStderr)
+	if helpCode != 0 {
+		t.Fatalf("run(--help) exit code = %d, want 0", helpCode)
+	}
+	if helpStderr.String() != "" {
+		t.Fatalf("run(--help) stderr = %q, want empty", helpStderr.String())
+	}
+	rootHelp := helpStdout.String()
+	if rootHelp == "" {
+		t.Fatal("run(--help) stdout is empty")
+	}
+
+	tests := []struct {
+		name       string
+		args       []string
+		wantStderr []string
+	}{
+		{
+			name:       "no args",
+			wantStderr: []string{"binest: error: expected one of"},
+		},
+		{
+			name:       "unknown root argument",
+			args:       []string{"notacommand"},
+			wantStderr: []string{"binest: error: unexpected argument notacommand"},
+		},
+		{
+			name:       "unknown root flag",
+			args:       []string{"--bad"},
+			wantStderr: []string{"binest: error: unknown flag --bad"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code := run(test.args, nil, &stdout, &stderr)
+			if code == 0 {
+				t.Fatal("run() exit code = 0, want nonzero")
+			}
+			if stdout.String() != "" {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+			if !strings.Contains(stderr.String(), rootHelp) {
+				t.Fatalf("stderr does not contain root help:\n%s", stderr.String())
+			}
+			for _, want := range test.wantStderr {
+				if !strings.Contains(stderr.String(), want) {
+					t.Fatalf("stderr does not contain %q:\n%s", want, stderr.String())
+				}
+			}
+		})
+	}
+}
+
+func TestRunSubcommandParseErrorKeepsShortUsage(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+
+	code := run([]string{"size", "--bad"}, nil, &stdout, &stderr)
+
+	if code == 0 {
+		t.Fatal("run() exit code = 0, want nonzero")
+	}
+	for _, want := range []string{"Usage: binest size", `Run "binest size --help" for more information.`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("stdout does not contain %q:\n%s", want, stdout.String())
+		}
+	}
+	if strings.Contains(stdout.String(), "Commands:") {
+		t.Fatalf("stdout contains full root help, want short usage:\n%s", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "binest: error: unknown flag --bad") {
+		t.Fatalf("stderr does not contain parse error:\n%s", stderr.String())
+	}
+}
+
 func TestRunNoIndexes(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 
