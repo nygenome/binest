@@ -23,7 +23,7 @@ type exitStatus int
 
 type cli struct {
 	Version kong.VersionFlag `short:"v" help:"Show application version."`
-	FAI     string           `short:"f" name:"fai" type:"existingfile" help:"path to reference fasta index (*.fai)."`
+	FAI     string           `short:"f" name:"fai" type:"existingfile" help:"Path to reference FASTA index (*.fai). Compact FAI files are allowed for BAI-only workflows when no BAM header is available."`
 
 	ChromCopy chromCopyCmd `cmd:"" name:"chromcopy" help:"Estimate per chromosome copy number for sample(s) given their indexes."`
 	Size      sizeCmd      `cmd:"" name:"size" help:"Compute raw/normalized size for every 16kb window for sample(s) given their indexes."`
@@ -32,24 +32,30 @@ type cli struct {
 }
 
 type chromCopyCmd struct {
-	Ploidy  uint     `default:"2" help:"base ploidy to use for chromosome copy estimate."`
-	Indexes []string `arg:"" optional:"" name:"index" type:"existingfile" help:"path to one or more index files."`
+	Ploidy              uint     `default:"2" help:"Base ploidy to use for chromosome copy estimate."`
+	ReferenceBuild      string   `name:"reference-build" default:"auto" enum:"auto,b37,b38,none" help:"Reference build used for zero-bin masking: auto detects b37/b38 from primary and sex contig lengths; none disables masking."`
+	AllowBAMFAIMismatch bool     `name:"allow-bam-fai-mismatch" help:"Warn and continue with --fai labels when a BAM header and FAI have different reference names, lengths, or order."`
+	Indexes             []string `arg:"" optional:"" name:"index" type:"existingfile" help:"Path to one or more index files."`
 }
 
 type sizeCmd struct {
-	Raw     bool     `short:"r" help:"out raw sizes without normalization."`
-	Indexes []string `arg:"" optional:"" name:"index" type:"existingfile" help:"path to one or more index files."`
+	Raw                 bool     `short:"r" help:"Output raw index-density estimates before autosomal-median scaling."`
+	ReferenceBuild      string   `name:"reference-build" default:"auto" enum:"auto,b37,b38,none" help:"Reference build used for zero-bin masking: auto detects b37/b38 from primary and sex contig lengths; none disables masking."`
+	AllowBAMFAIMismatch bool     `name:"allow-bam-fai-mismatch" help:"Warn and continue with --fai labels when a BAM header and FAI have different reference names, lengths, or order."`
+	Indexes             []string `arg:"" optional:"" name:"index" type:"existingfile" help:"Path to one or more index files."`
 }
 
 type sexCmd struct {
-	Ploidy          uint     `default:"2" help:"base ploidy to use for sex genotype estimate."`
-	ForceMaleFemale bool     `name:"force-male-female" help:"Force male/female gender based on normalized value thresholds."`
-	Indexes         []string `arg:"" optional:"" name:"index" type:"existingfile" help:"path to one or more index files."`
+	Ploidy              uint     `default:"2" help:"Base ploidy to use for sex genotype estimate."`
+	ForceMaleFemale     bool     `name:"force-male-female" help:"Force male/female gender based on normalized value thresholds."`
+	ReferenceBuild      string   `name:"reference-build" default:"auto" enum:"auto,b37,b38,none" help:"Reference build used for zero-bin masking: auto detects b37/b38 from primary and sex contig lengths; none disables masking."`
+	AllowBAMFAIMismatch bool     `name:"allow-bam-fai-mismatch" help:"Warn and continue with --fai labels when a BAM header and FAI have different reference names, lengths, or order."`
+	Indexes             []string `arg:"" optional:"" name:"index" type:"existingfile" help:"Path to one or more index files."`
 }
 
 type numreadsCmd struct {
 	IncludeUnmapped bool     `name:"include-unmapped" help:"Include unmapped reads in count."`
-	Indexes         []string `arg:"" optional:"" name:"index" type:"existingfile" help:"path to one or more index files."`
+	Indexes         []string `arg:"" optional:"" name:"index" type:"existingfile" help:"Path to one or more index files."`
 }
 
 type commandEnv struct {
@@ -182,113 +188,239 @@ func printUsageTo(w io.Writer, ctx *kong.Context) error {
 }
 
 func (c *chromCopyCmd) Run(env *commandEnv) error {
-	return runIndexes(c.Indexes, env.stdin, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
-		binest.RunChromCopy(idxsChan, errChan, doneChan, env.stdout, env.cli.FAI, c.Ploidy)
-	})
+	opts, err := referenceOptions(env.cli.FAI, c.ReferenceBuild, c.AllowBAMFAIMismatch)
+	if err != nil {
+		return err
+	}
+	return runChromCopy(c.Indexes, env, opts, c.Ploidy)
 }
 
 func (c *sizeCmd) Run(env *commandEnv) error {
-	return runIndexes(c.Indexes, env.stdin, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
-		binest.RunSize(idxsChan, errChan, doneChan, env.stdout, env.cli.FAI, c.Raw)
-	})
+	opts, err := referenceOptions(env.cli.FAI, c.ReferenceBuild, c.AllowBAMFAIMismatch)
+	if err != nil {
+		return err
+	}
+	return runSize(c.Indexes, env, opts, c.Raw)
 }
 
 func (c *sexCmd) Run(env *commandEnv) error {
-	return runIndexes(c.Indexes, env.stdin, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
-		binest.RunSex(idxsChan, errChan, doneChan, env.stdout, env.cli.FAI, c.Ploidy, c.ForceMaleFemale)
-	})
+	opts, err := referenceOptions(env.cli.FAI, c.ReferenceBuild, c.AllowBAMFAIMismatch)
+	if err != nil {
+		return err
+	}
+	return runSex(c.Indexes, env, opts, c.Ploidy, c.ForceMaleFemale)
 }
 
 func (c *numreadsCmd) Run(env *commandEnv) error {
-	return runIndexes(c.Indexes, env.stdin, func(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool) {
-		binest.RunNumreads(idxsChan, errChan, doneChan, env.stdout, c.IncludeUnmapped)
-	})
+	source, err := newCLIIndexSource(c.Indexes, env.stdin)
+	if err != nil {
+		return err
+	}
+	return binest.RunNumreads(source, env.stdout, c.IncludeUnmapped)
 }
 
-func runIndexes(args []string, stdin io.Reader, runner func(<-chan string, chan<- error, chan<- bool)) error {
-	if len(args) == 0 && stdin == nil {
-		return errNoIndexes
+func referenceOptions(faiPath, buildValue string, allowMismatch bool) (binest.IndexOptions, error) {
+	build, err := binest.ParseReferenceBuild(buildValue)
+	if err != nil {
+		return binest.IndexOptions{}, err
+	}
+	policy := binest.ReferenceValidationStrict
+	if allowMismatch {
+		policy = binest.ReferenceValidationAllowMismatch
+	}
+	return binest.IndexOptions{
+		FAIPath:             faiPath,
+		ReferenceBuild:      build,
+		ReferenceValidation: policy,
+	}, nil
+}
+
+func runSize(args []string, env *commandEnv, opts binest.IndexOptions, rawSize bool) error {
+	source, err := newCLIIndexSource(args, env.stdin)
+	if err != nil {
+		return err
+	}
+	sizeString := "NORMALIZED_SIZE"
+	if rawSize {
+		sizeString = "RAW_SIZE"
+	}
+	if _, err := fmt.Fprintf(env.stdout, "CHROM\tSTART\tEND\t%s\tSAMPLE\n", sizeString); err != nil {
+		return err
+	}
+	if err := flushCommandOutput(env.stdout); err != nil {
+		return err
 	}
 
-	idxsChan := make(chan string)
-	errChan := make(chan error, 1)
-	feedErrChan := make(chan error, 1)
-	doneChan := make(chan bool, 1)
-	stopChan := make(chan struct{})
-	stopFeed := func() {
-		select {
-		case <-stopChan:
-		default:
-			close(stopChan)
-		}
-	}
-
-	go runner(idxsChan, errChan, doneChan)
-
-	go func() {
-		defer close(idxsChan)
-
-		for _, idxPath := range args {
-			if !sendIndex(idxsChan, stopChan, idxPath) {
-				return
-			}
-		}
-
-		if stdin == nil {
-			return
-		}
-
-		scanner := bufio.NewScanner(stdin)
-		for scanner.Scan() {
-			if !sendIndex(idxsChan, stopChan, scanner.Text()) {
-				return
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			feedErrChan <- fmt.Errorf("error reading data from stdin: %w", err)
-		}
-	}()
-
-	var firstErr error
+	var batch binest.BatchError
 	for {
-		select {
-		case err := <-errChan:
-			if err != nil && firstErr == nil {
-				firstErr = err
-			}
-		case err := <-feedErrChan:
-			if err != nil && firstErr == nil {
-				firstErr = err
-				stopFeed()
-			}
-		case <-doneChan:
-			stopFeed()
-			select {
-			case err := <-errChan:
-				if err != nil && firstErr == nil {
-					firstErr = err
-				}
-			default:
-			}
-			select {
-			case err := <-feedErrChan:
-				if err != nil && firstErr == nil {
-					firstErr = err
-				}
-			default:
-			}
-			return firstErr
+		idxPath, ok, err := source.Next()
+		if err != nil {
+			batch.Add("", err)
+			return batch.Err()
+		}
+		if !ok {
+			return batch.Err()
+		}
+		idx, err := newIndexForCLI(idxPath, opts, env.stderr)
+		if err != nil {
+			batch.Add(idxPath, err)
+			continue
+		}
+		sizes, err := idx.Sizes(rawSize)
+		if err != nil {
+			batch.Add(idxPath, err)
+			continue
+		}
+		if _, err := fmt.Fprintln(env.stdout, sizes); err != nil {
+			return err
+		}
+		if err := flushCommandOutput(env.stdout); err != nil {
+			return err
 		}
 	}
 }
 
-func sendIndex(idxsChan chan<- string, stopChan <-chan struct{}, idxPath string) bool {
-	select {
-	case <-stopChan:
-		return false
-	case idxsChan <- idxPath:
-		return true
+func runChromCopy(args []string, env *commandEnv, opts binest.IndexOptions, ploidy uint) error {
+	source, err := newCLIIndexSource(args, env.stdin)
+	if err != nil {
+		return err
 	}
+	if _, err := fmt.Fprintln(env.stdout, "SAMPLE\tCHROM\tCOPY_ESTIMATE\tNORM_ESTIMATE"); err != nil {
+		return err
+	}
+	if err := flushCommandOutput(env.stdout); err != nil {
+		return err
+	}
+
+	var batch binest.BatchError
+	for {
+		idxPath, ok, err := source.Next()
+		if err != nil {
+			batch.Add("", err)
+			return batch.Err()
+		}
+		if !ok {
+			return batch.Err()
+		}
+		idx, err := newIndexForCLI(idxPath, opts, env.stderr)
+		if err != nil {
+			batch.Add(idxPath, err)
+			continue
+		}
+		copies, err := idx.ChromCopy(ploidy)
+		if err != nil {
+			batch.Add(idxPath, err)
+			continue
+		}
+		if _, err := fmt.Fprintln(env.stdout, copies); err != nil {
+			return err
+		}
+		if err := flushCommandOutput(env.stdout); err != nil {
+			return err
+		}
+	}
+}
+
+func runSex(args []string, env *commandEnv, opts binest.IndexOptions, ploidy uint, forceMF bool) error {
+	source, err := newCLIIndexSource(args, env.stdin)
+	if err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(env.stdout, "SAMPLE\tESTIMATED_GENDER\tSEX_GENOTYPE\tNORM_X\tNORM_Y"); err != nil {
+		return err
+	}
+	if err := flushCommandOutput(env.stdout); err != nil {
+		return err
+	}
+
+	var batch binest.BatchError
+	for {
+		idxPath, ok, err := source.Next()
+		if err != nil {
+			batch.Add("", err)
+			return batch.Err()
+		}
+		if !ok {
+			return batch.Err()
+		}
+		idx, err := newIndexForCLI(idxPath, opts, env.stderr)
+		if err != nil {
+			batch.Add(idxPath, err)
+			continue
+		}
+		sex, err := idx.Sex(ploidy, forceMF)
+		if err != nil {
+			batch.Add(idxPath, err)
+			continue
+		}
+		if _, err := fmt.Fprintln(env.stdout, sex); err != nil {
+			return err
+		}
+		if err := flushCommandOutput(env.stdout); err != nil {
+			return err
+		}
+	}
+}
+
+func flushCommandOutput(w io.Writer) error {
+	if flusher, ok := w.(interface{ Flush() error }); ok {
+		return flusher.Flush()
+	}
+	return nil
+}
+
+func newIndexForCLI(idxPath string, opts binest.IndexOptions, stderr io.Writer) (*binest.Index, error) {
+	if opts.FAIPath != "" {
+		report, err := binest.ValidateIndexReferences(idxPath, opts.FAIPath)
+		if err != nil {
+			return nil, err
+		}
+		if report.HasMismatch() {
+			if opts.ReferenceValidation != binest.ReferenceValidationAllowMismatch {
+				return nil, report
+			}
+			if _, err := fmt.Fprintln(stderr, report.Message(true)); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return binest.NewIndexWithOptions(idxPath, opts)
+}
+
+type cliIndexSource struct {
+	args    []string
+	nextArg int
+	scanner *bufio.Scanner
+}
+
+func newCLIIndexSource(args []string, stdin io.Reader) (*cliIndexSource, error) {
+	if len(args) == 0 && stdin == nil {
+		return nil, errNoIndexes
+	}
+	source := &cliIndexSource{args: args}
+	if stdin != nil {
+		source.scanner = bufio.NewScanner(stdin)
+		source.scanner.Buffer(make([]byte, 1024), 1024*1024)
+	}
+	return source, nil
+}
+
+func (s *cliIndexSource) Next() (string, bool, error) {
+	if s.nextArg < len(s.args) {
+		idxPath := s.args[s.nextArg]
+		s.nextArg++
+		return idxPath, true, nil
+	}
+	if s.scanner == nil {
+		return "", false, nil
+	}
+	if s.scanner.Scan() {
+		return s.scanner.Text(), true, nil
+	}
+	if err := s.scanner.Err(); err != nil {
+		return "", false, fmt.Errorf("error reading data from stdin: %w", err)
+	}
+	return "", false, nil
 }
 
 // hasStdin checks if process can read from stdin.

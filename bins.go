@@ -110,53 +110,111 @@ func vOffset(o bgzf.Offset) int64 {
 func baiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 	fh, err := os.Open(idxPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open BAI %q: %w", idxPath, err)
 	}
 
 	idx, err := bam.ReadIndex(bufio.NewReader(fh))
 	closeErr := fh.Close()
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(
+			fmt.Errorf("read BAI %q: %w", idxPath, err),
+			closePathError("close BAI", idxPath, closeErr),
+		)
 	}
 	if closeErr != nil {
-		return nil, closeErr
+		return nil, closePathError("close BAI", idxPath, closeErr)
 	}
 
-	idxRefs := reflect.ValueOf(*idx).FieldByName("idx").FieldByName("Refs")
-	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
-	refIdxs := (*(*[1 << 29]internal.RefIndex)(idxRefsPtr))[:idxRefs.Len()]
-
-	return refIdxs, nil
+	return biogoRefIdxs(idx, "BAI")
 }
 
 // tbiRefIdxs returns the slice of reference indexes from a TABIX index
 func tbiRefIdxs(idxPath string) ([]internal.RefIndex, error) {
 	fh, err := os.Open(idxPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open TBI %q: %w", idxPath, err)
 	}
 
 	tbxRdr, err := bgzf.NewReader(bufio.NewReader(fh), 2)
 	if err != nil {
 		if closeErr := fh.Close(); closeErr != nil {
-			return nil, errors.Join(err, closeErr)
+			return nil, errors.Join(
+				fmt.Errorf("open BGZF reader for TBI %q: %w", idxPath, err),
+				closePathError("close TBI", idxPath, closeErr),
+			)
 		}
-		return nil, err
+		return nil, fmt.Errorf("open BGZF reader for TBI %q: %w", idxPath, err)
 	}
 
 	idx, readErr := tabix.ReadFrom(tbxRdr)
 	tbxCloseErr := tbxRdr.Close()
 	fhCloseErr := fh.Close()
 	if readErr != nil {
-		return nil, errors.Join(readErr, tbxCloseErr, fhCloseErr)
+		return nil, errors.Join(
+			fmt.Errorf("read TBI %q: %w", idxPath, readErr),
+			closePathError("close BGZF reader for TBI", idxPath, tbxCloseErr),
+			closePathError("close TBI", idxPath, fhCloseErr),
+		)
 	}
 	if tbxCloseErr != nil || fhCloseErr != nil {
-		return nil, errors.Join(tbxCloseErr, fhCloseErr)
+		return nil, errors.Join(
+			closePathError("close BGZF reader for TBI", idxPath, tbxCloseErr),
+			closePathError("close TBI", idxPath, fhCloseErr),
+		)
 	}
 
-	idxRefs := reflect.ValueOf(*idx).FieldByName("idx").FieldByName("Refs")
-	idxRefsPtr := unsafe.Pointer(idxRefs.Pointer())
-	refIdxs := (*(*[1 << 29]internal.RefIndex)(idxRefsPtr))[:idxRefs.Len()]
+	return biogoRefIdxs(idx, "TBI")
+}
 
-	return refIdxs, nil
+func biogoRefIdxs(index any, source string) ([]internal.RefIndex, error) {
+	refs, err := biogoRefIdxValue(index, source)
+	if err != nil {
+		return nil, err
+	}
+	if refs.Len() == 0 {
+		return []internal.RefIndex{}, nil
+	}
+	idxRefsPtr := unsafe.Pointer(refs.Pointer())
+	refIdxs := (*(*[1 << 29]internal.RefIndex)(idxRefsPtr))[:refs.Len():refs.Len()]
+	return append([]internal.RefIndex(nil), refIdxs...), nil
+}
+
+func biogoRefIdxValue(index any, source string) (reflect.Value, error) {
+	v := reflect.ValueOf(index)
+	if !v.IsValid() {
+		return reflect.Value{}, fmt.Errorf("%s index internals unavailable: nil index", source)
+	}
+	if v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return reflect.Value{}, fmt.Errorf("%s index internals unavailable: nil index", source)
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return reflect.Value{}, fmt.Errorf("%s index internals unavailable: got %s, want struct", source, v.Kind())
+	}
+	idx := v.FieldByName("idx")
+	if !idx.IsValid() || idx.Kind() != reflect.Struct {
+		return reflect.Value{}, fmt.Errorf("%s index internals changed: missing struct field idx", source)
+	}
+	refs := idx.FieldByName("Refs")
+	if !refs.IsValid() || refs.Kind() != reflect.Slice {
+		return reflect.Value{}, fmt.Errorf("%s index internals changed: missing slice field idx.Refs", source)
+	}
+	refType := refs.Type().Elem()
+	if refType.Kind() != reflect.Struct {
+		return reflect.Value{}, fmt.Errorf("%s index internals changed: idx.Refs element is %s, want struct", source, refType.Kind())
+	}
+	if refType.NumField() < 3 {
+		return reflect.Value{}, fmt.Errorf("%s index internals changed: idx.Refs element layout is incompatible", source)
+	}
+	for _, name := range []string{"Bins", "Stats", "Intervals"} {
+		if _, ok := refType.FieldByName(name); !ok {
+			return reflect.Value{}, fmt.Errorf("%s index internals changed: idx.Refs element missing %s", source, name)
+		}
+	}
+	if refType.Size() != reflect.TypeOf(internal.RefIndex{}).Size() {
+		return reflect.Value{}, fmt.Errorf("%s index internals changed: RefIndex size mismatch", source)
+	}
+	return refs, nil
 }

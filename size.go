@@ -6,37 +6,47 @@ import (
 )
 
 // RunSize estimates the per window sizes for all the given indexes
-// read from a channel and results written to io.Writer.
-func RunSize(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool, w io.Writer, faiPath string, rawSize bool) {
-	defer func() {
-		doneChan <- true
-	}()
-
+// read from a streaming IndexSource and writes results to io.Writer.
+func RunSize(source IndexSource, w io.Writer, opts IndexOptions, rawSize bool) error {
 	sizeString := "NORMALIZED_SIZE"
 	if rawSize {
 		sizeString = "RAW_SIZE"
 	}
 	if _, err := fmt.Fprintf(w, "CHROM\tSTART\tEND\t%s\tSAMPLE\n", sizeString); err != nil {
-		errChan <- err
-		return
+		return err
+	}
+	if err := flushIfSupported(w); err != nil {
+		return err
 	}
 
-	for idxPath := range idxsChan {
-		idx, err := NewIndex(idxPath, faiPath)
+	var batch BatchError
+	for {
+		idxPath, ok, err := source.Next()
 		if err != nil {
-			errChan <- err
+			batch.Add("", err)
+			return batch.Err()
+		}
+		if !ok {
+			return batch.Err()
+		}
+
+		idx, err := NewIndexWithOptions(idxPath, opts)
+		if err != nil {
+			batch.Add(idxPath, err)
 			continue
 		}
 
 		sizes, err := idx.Sizes(rawSize)
 		if err != nil {
-			errChan <- err
+			batch.Add(idxPath, err)
 			continue
 		}
 
 		if _, err = fmt.Fprintln(w, sizes); err != nil {
-			errChan <- err
-			return
+			return err
+		}
+		if err := flushIfSupported(w); err != nil {
+			return err
 		}
 	}
 }

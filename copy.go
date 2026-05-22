@@ -6,33 +6,43 @@ import (
 )
 
 // RunChromCopy estimates the chromosome copy number for all the
-// given indexes read from a channel and results written to io.Writer.
-func RunChromCopy(idxsChan <-chan string, errChan chan<- error, doneChan chan<- bool, w io.Writer, faiPath string, ploidy uint) {
-	defer func() {
-		doneChan <- true
-	}()
-
+// given indexes read from a streaming IndexSource and writes results to io.Writer.
+func RunChromCopy(source IndexSource, w io.Writer, opts IndexOptions, ploidy uint) error {
 	if _, err := fmt.Fprintln(w, "SAMPLE\tCHROM\tCOPY_ESTIMATE\tNORM_ESTIMATE"); err != nil {
-		errChan <- err
-		return
+		return err
+	}
+	if err := flushIfSupported(w); err != nil {
+		return err
 	}
 
-	for idxPath := range idxsChan {
-		idx, err := NewIndex(idxPath, faiPath)
+	var batch BatchError
+	for {
+		idxPath, ok, err := source.Next()
 		if err != nil {
-			errChan <- err
+			batch.Add("", err)
+			return batch.Err()
+		}
+		if !ok {
+			return batch.Err()
+		}
+
+		idx, err := NewIndexWithOptions(idxPath, opts)
+		if err != nil {
+			batch.Add(idxPath, err)
 			continue
 		}
 
 		copies, err := idx.ChromCopy(ploidy)
 		if err != nil {
-			errChan <- err
+			batch.Add(idxPath, err)
 			continue
 		}
 
 		if _, err = fmt.Fprintln(w, copies); err != nil {
-			errChan <- err
-			return
+			return err
+		}
+		if err := flushIfSupported(w); err != nil {
+			return err
 		}
 	}
 }

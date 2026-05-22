@@ -222,53 +222,42 @@ func giabPaths(cache string, fixtures []giabFixture, kind string) []string {
 
 func runGIABNumreads(t *testing.T, paths []string, includeUnmapped bool) string {
 	t.Helper()
-	return runGIABCommand(t, paths, func(idxs <-chan string, errs chan<- error, done chan<- bool, out *bytes.Buffer) {
-		RunNumreads(idxs, errs, done, out, includeUnmapped)
+	return runGIABCommand(t, paths, func(source IndexSource, out *bytes.Buffer) error {
+		return RunNumreads(source, out, includeUnmapped)
 	})
 }
 
 func runGIABSize(t *testing.T, paths []string, faiPath string, raw bool) string {
 	t.Helper()
-	return runGIABCommand(t, paths, func(idxs <-chan string, errs chan<- error, done chan<- bool, out *bytes.Buffer) {
-		RunSize(idxs, errs, done, out, faiPath, raw)
+	opts := IndexOptions{FAIPath: faiPath}
+	return runGIABCommand(t, paths, func(source IndexSource, out *bytes.Buffer) error {
+		return RunSize(source, out, opts, raw)
 	})
 }
 
 func runGIABChromCopy(t *testing.T, paths []string, faiPath string) string {
 	t.Helper()
-	return runGIABCommand(t, paths, func(idxs <-chan string, errs chan<- error, done chan<- bool, out *bytes.Buffer) {
-		RunChromCopy(idxs, errs, done, out, faiPath, 2)
+	opts := IndexOptions{FAIPath: faiPath}
+	return runGIABCommand(t, paths, func(source IndexSource, out *bytes.Buffer) error {
+		return RunChromCopy(source, out, opts, 2)
 	})
 }
 
 func runGIABSex(t *testing.T, paths []string, faiPath string, forceMF bool) string {
 	t.Helper()
-	return runGIABCommand(t, paths, func(idxs <-chan string, errs chan<- error, done chan<- bool, out *bytes.Buffer) {
-		RunSex(idxs, errs, done, out, faiPath, 2, forceMF)
+	opts := IndexOptions{FAIPath: faiPath}
+	return runGIABCommand(t, paths, func(source IndexSource, out *bytes.Buffer) error {
+		return RunSex(source, out, opts, 2, forceMF)
 	})
 }
 
-func runGIABCommand(t *testing.T, paths []string, runner func(<-chan string, chan<- error, chan<- bool, *bytes.Buffer)) string {
+func runGIABCommand(t *testing.T, paths []string, runner func(IndexSource, *bytes.Buffer) error) string {
 	t.Helper()
 
-	idxs := make(chan string, len(paths))
-	errs := make(chan error, len(paths)+1)
-	done := make(chan bool, 1)
 	var out bytes.Buffer
 
-	go runner(idxs, errs, done, &out)
-	for _, path := range paths {
-		idxs <- path
-	}
-	close(idxs)
-	<-done
-
-	select {
-	case err := <-errs:
-		if err != nil {
-			t.Fatalf("GIAB command error = %v", err)
-		}
-	default:
+	if err := runner(NewSliceIndexSource(paths), &out); err != nil {
+		t.Fatalf("GIAB command error = %v", err)
 	}
 	return out.String()
 }

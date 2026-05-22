@@ -2,7 +2,6 @@ package binest
 
 import (
 	"errors"
-	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -84,7 +83,11 @@ func TestMedianI64(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := medianI64(test.vals); got != test.want {
+			got, err := medianI64(test.vals)
+			if err != nil {
+				t.Fatalf("medianI64(%v) error = %v", test.vals, err)
+			}
+			if got != test.want {
 				t.Fatalf("medianI64(%v) = %v, want %v", test.vals, got, test.want)
 			}
 		})
@@ -93,7 +96,10 @@ func TestMedianI64(t *testing.T) {
 
 func TestMedianI64CorrectEvenLengthBehavior(t *testing.T) {
 	vals := []int64{10, 20, 30, 40}
-	got := medianI64(vals)
+	got, err := medianI64(vals)
+	if err != nil {
+		t.Fatalf("medianI64([10 20 30 40]) error = %v", err)
+	}
 	if got != 25 {
 		t.Fatalf("medianI64([10 20 30 40]) = %v, want 25", got)
 	}
@@ -120,30 +126,39 @@ func TestMedianI64CorrectEvenLengthBehavior(t *testing.T) {
 	}
 }
 
-func TestGenomeBuildDetection(t *testing.T) {
+func TestReferenceBuildDetection(t *testing.T) {
 	tests := []struct {
 		name string
-		refs RefMap
-		want string
+		refs referenceRecords
+		want ReferenceBuild
 	}{
-		{name: "chr-prefixed primary refs", refs: RefMap{0: "chr1", 1: "chr2"}, want: "b38"},
-		{name: "unprefixed primary refs", refs: RefMap{0: "1", 1: "2"}, want: "b37"},
-		{name: "excluded chr-prefixed refs only", refs: RefMap{0: "chrM", 1: "chrUn_KI270442v1", 2: "chr1_KI270706v1_random"}, want: "b37"},
+		{name: "chr-prefixed b37 primary refs", refs: referenceRecords{{Name: "chr1", Length: b37Lengths["1"]}, {Name: "chr2", Length: b37Lengths["2"]}}, want: ReferenceBuildB37},
+		{name: "unprefixed b38 primary refs", refs: referenceRecords{{Name: "1", Length: b38Lengths["1"]}, {Name: "2", Length: b38Lengths["2"]}}, want: ReferenceBuildB38},
+		{name: "compact b38 reference", refs: referenceRecords{{Name: "chrX", Length: b38Lengths["X"]}}, want: ReferenceBuildB38},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := (&test.refs).GenomeBuild(); got != test.want {
-				t.Fatalf("GenomeBuild() = %q, want %q", got, test.want)
+			got, err := detectReferenceBuild(test.refs)
+			if err != nil {
+				t.Fatalf("detectReferenceBuild() error = %v", err)
+			}
+			if got != test.want {
+				t.Fatalf("detectReferenceBuild() = %q, want %q", got, test.want)
 			}
 		})
 	}
 }
 
-func TestGenomeBuildChrPrefixesUseB38ZeroMask(t *testing.T) {
+func TestReferenceBuildAutoUsesLengthsForZeroMask(t *testing.T) {
 	refMap := &RefMap{0: "chr1", 1: "chr2"}
-	if got := refMap.GenomeBuild(); got != "b38" {
-		t.Fatalf("GenomeBuild() = %q, want b38", got)
+	records := referenceRecords{{ID: 0, Name: "chr1", Length: b38Lengths["1"]}, {ID: 1, Name: "chr2", Length: b38Lengths["2"]}}
+	build, err := detectReferenceBuild(records)
+	if err != nil {
+		t.Fatalf("detectReferenceBuild() error = %v", err)
+	}
+	if build != ReferenceBuildB38 {
+		t.Fatalf("detectReferenceBuild() = %q, want b38", build)
 	}
 	if !zeros["b37"][1][306] {
 		t.Fatal("test setup expects b37 zero mask at ref=1 bin=306")
@@ -174,7 +189,7 @@ func TestGenomeBuildChrPrefixesUseB38ZeroMask(t *testing.T) {
 		t.Fatalf("forced b37 output = %q, want no rows", got)
 	}
 
-	detectedB38Bins, err := binSizes(cloneRefIndexes(refIdxs), refMap.GenomeBuild())
+	detectedB38Bins, err := binSizes(cloneRefIndexes(refIdxs), build.zeroMaskKey())
 	if err != nil {
 		t.Fatalf("binSizes(b38) error = %v", err)
 	}
@@ -300,28 +315,20 @@ func TestResultStringFormatting(t *testing.T) {
 }
 
 func TestRunSizePropagatesWriterError(t *testing.T) {
-	idxs := make(chan string)
-	errs := make(chan error, 1)
-	done := make(chan bool, 1)
 	wantErr := errors.New("write failed")
 
-	go RunSize(idxs, errs, done, errWriter{err: wantErr}, "", true)
-	close(idxs)
-	<-done
-
-	select {
-	case err := <-errs:
-		if !errors.Is(err, wantErr) {
-			t.Fatalf("RunSize error = %v, want %v", err, wantErr)
-		}
-	default:
-		t.Fatal("RunSize did not report writer error")
+	err := RunSize(NewSliceIndexSource(nil), errWriter{err: wantErr}, IndexOptions{}, true)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("RunSize error = %v, want %v", err, wantErr)
 	}
 }
 
-func TestMeanI64EmptyCurrentBehavior(t *testing.T) {
-	if got := meanI64(nil); !math.IsNaN(got) {
-		t.Fatalf("meanI64(nil) = %v, want NaN under current behavior", got)
+func TestMedianHelpersRejectEmptyInput(t *testing.T) {
+	if _, err := meanI64(nil); !errors.Is(err, errInvalidMedianInput) {
+		t.Fatalf("meanI64(nil) error = %v, want %v", err, errInvalidMedianInput)
+	}
+	if _, err := medianI64(nil); !errors.Is(err, errInvalidMedianInput) {
+		t.Fatalf("medianI64(nil) error = %v, want %v", err, errInvalidMedianInput)
 	}
 }
 
