@@ -71,7 +71,7 @@
 - install packr command in make deps
 
 ### New Features
-- add design doc. fixes [#1](https://git.nygenome.org/rmusunuri/binest/issues/1)
+- add design doc. fixes [#1](https://github.com/nygenome/binest/issues/1)
 
 
 <a name="v0.8.4"></a>
@@ -214,22 +214,22 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://git.nygenome.org/rmusunuri/binest/compare/v0.13.1...HEAD
-[v0.13.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.13.0...v0.13.1
-[v0.13.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.12.0...v0.13.0
-[v0.12.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.11.0...v0.12.0
-[v0.11.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.1...v0.11.0
-[v0.10.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.10.0...v0.10.1
-[v0.10.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.9.0...v0.10.0
-[v0.9.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.5...v0.9.0
-[v0.8.5]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.4...v0.8.5
-[v0.8.4]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.2...v0.8.4
-[v0.8.2]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.1...v0.8.2
-[v0.8.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.8.0...v0.8.1
-[v0.8.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.7.0...v0.8.0
-[v0.7.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.2...v0.7.0
-[v0.6.2]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.1...v0.6.2
-[v0.6.1]: https://git.nygenome.org/rmusunuri/binest/compare/v0.6.0...v0.6.1
-[v0.6.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.5.0...v0.6.0
-[v0.5.0]: https://git.nygenome.org/rmusunuri/binest/compare/v0.4.4...v0.5.0
-[v0.4.4]: https://git.nygenome.org/rmusunuri/binest/compare/v0.4.3...v0.4.4
+[Unreleased]: https://github.com/nygenome/binest/compare/v0.13.1...HEAD
+[v0.13.1]: https://github.com/nygenome/binest/compare/v0.13.0...v0.13.1
+[v0.13.0]: https://github.com/nygenome/binest/compare/v0.12.0...v0.13.0
+[v0.12.0]: https://github.com/nygenome/binest/compare/v0.11.0...v0.12.0
+[v0.11.0]: https://github.com/nygenome/binest/compare/v0.10.1...v0.11.0
+[v0.10.1]: https://github.com/nygenome/binest/compare/v0.10.0...v0.10.1
+[v0.10.0]: https://github.com/nygenome/binest/compare/v0.9.0...v0.10.0
+[v0.9.0]: https://github.com/nygenome/binest/compare/v0.8.5...v0.9.0
+[v0.8.5]: https://github.com/nygenome/binest/compare/v0.8.4...v0.8.5
+[v0.8.4]: https://github.com/nygenome/binest/compare/v0.8.2...v0.8.4
+[v0.8.2]: https://github.com/nygenome/binest/compare/v0.8.1...v0.8.2
+[v0.8.1]: https://github.com/nygenome/binest/compare/v0.8.0...v0.8.1
+[v0.8.0]: https://github.com/nygenome/binest/compare/v0.7.0...v0.8.0
+[v0.7.0]: https://github.com/nygenome/binest/compare/v0.6.2...v0.7.0
+[v0.6.2]: https://github.com/nygenome/binest/compare/v0.6.1...v0.6.2
+[v0.6.1]: https://github.com/nygenome/binest/compare/v0.6.0...v0.6.1
+[v0.6.0]: https://github.com/nygenome/binest/compare/v0.5.0...v0.6.0
+[v0.5.0]: https://github.com/nygenome/binest/compare/v0.4.4...v0.5.0
+[v0.4.4]: https://github.com/nygenome/binest/compare/v0.4.3...v0.4.4

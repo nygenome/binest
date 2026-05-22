@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"git.nygenome.org/rmusunuri/binest/internal"
+	"github.com/nygenome/binest/internal"
 )
 
 var (

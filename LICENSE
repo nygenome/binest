@@ -37,7 +37,7 @@ identified function of the PROGRAM.
 
 1.2 “PROGRAM” shall mean copyright in the object code and source code known as
 binest and related documentation, if any, as they exist on the EFFECTIVE DATE
-and can be downloaded from https://git.nygenome.org/rmusunuri/binest on the EFFECTIVE
+and can be downloaded from https://github.com/nygenome/binest on the EFFECTIVE
 DATE.
 
 
@@ -81,7 +81,7 @@ FIXES shall be provided to NYGC promptly upon their creation. LICENSEE further
 agrees to cite its use of the PROGRAM in any publication as follows:
 
 Rajeeva Musunuri, binest. New York Genome Center
-(https://git.nygenome.org/rmusunuri/binest)
+(https://github.com/nygenome/binest)
 
 
 

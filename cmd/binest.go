@@ -10,7 +10,7 @@ import (
 
 	"github.com/alecthomas/kong"
 
-	"git.nygenome.org/rmusunuri/binest"
+	"github.com/nygenome/binest"
 )
 
 var (

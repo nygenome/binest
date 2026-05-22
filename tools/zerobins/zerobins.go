@@ -7,7 +7,7 @@ import (
 	"errors"
 	"os"
 
-	"git.nygenome.org/rmusunuri/binest"
+	"github.com/nygenome/binest"
 )
 
 func main() {

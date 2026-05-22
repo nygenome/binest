@@ -35,6 +35,13 @@ and zero-bin masking. It reads mapped and optionally unmapped read counts from
 the BAM index statistics path.
 
 
+##### Installation
+
+```shell
+go install github.com/nygenome/binest/cmd/binest@latest
+```
+
+
 ##### Example usage
 
 The basic usage for all binest commands are the same.

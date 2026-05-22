@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-PKG := git.nygenome.org/rmusunuri/binest
+PKG := github.com/nygenome/binest
 VERSION := $(shell cat VERSION.txt)
 BUILDTIME := $(shell date +'%Y-%m-%dT%H:%M:%S%Z')
 GITCOMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)

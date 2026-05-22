@@ -1,8 +1,8 @@
-style: gitlab
+style: github
 template: CHANGELOG.tpl.md
 info:
   title: CHANGELOG
-  repository_url: https://git.nygenome.org/rmusunuri/binest
+  repository_url: https://github.com/nygenome/binest
 options:
   commits:
     filters:

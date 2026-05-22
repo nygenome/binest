@@ -9,7 +9,7 @@ import (
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/tabix"
 
-	"git.nygenome.org/rmusunuri/binest/internal"
+	"github.com/nygenome/binest/internal"
 )
 
 func TestReferenceValidationReportsMismatches(t *testing.T) {

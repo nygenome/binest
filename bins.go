@@ -15,7 +15,7 @@ import (
 	"github.com/biogo/hts/bgzf"
 	"github.com/biogo/hts/tabix"
 
-	"git.nygenome.org/rmusunuri/binest/internal"
+	"github.com/nygenome/binest/internal"
 )
 
 // ZeroBins holds all the bins which are predominantly zeros all the time

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.nygenome.org/rmusunuri/binest/internal"
+	"github.com/nygenome/binest/internal"
 )
 
 var errInvalidAutosomeMedian = errors.New("invalid autosomal normalization median")

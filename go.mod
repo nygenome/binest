@@ -1,4 +1,4 @@
-module git.nygenome.org/rmusunuri/binest
+module github.com/nygenome/binest
 
 go 1.26
 

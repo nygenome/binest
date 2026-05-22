@@ -8,7 +8,7 @@ import (
 
 	"github.com/biogo/hts/bgzf"
 
-	"git.nygenome.org/rmusunuri/binest/internal"
+	"github.com/nygenome/binest/internal"
 )
 
 func TestDetectIndexKind(t *testing.T) {
