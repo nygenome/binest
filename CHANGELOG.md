@@ -2,6 +2,35 @@
 ## [Unreleased]
 
 
+<a name="v0.14.0"></a>
+## [v0.14.0] - 2026-05-22
+### Breaking Changes
+- The canonical Go module path is now `github.com/nygenome/binest`; consumers
+  using `git.nygenome.org/rmusunuri/binest` must update imports or stay on
+  older tags.
+
+### Bug Fixes
+- detect chr-prefixed GRCh38 references
+- compute even-length medians correctly
+- make core behavior error-aware
+- **cli:** show root help for root parse errors
+- **core:** harden index validation and processing
+
+### Code Maintenance
+- modernize build baseline
+- modernize dependency workflow
+- **deps:** bump golangci/golangci-lint-action from 8 to 9 (#1)
+- **module:** switch canonical path to GitHub
+- prepare v0.14.0 release
+
+### Documentation
+- add Codex project guidance
+
+### Tests
+- add GIAB-backed behavior coverage
+- expand GIAB behavior goldens
+
+
 <a name="v0.13.1"></a>
 ## [v0.13.1] - 2021-06-14
 ### Code Maintenance
@@ -214,7 +243,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://github.com/nygenome/binest/compare/v0.13.1...HEAD
+[Unreleased]: https://github.com/nygenome/binest/compare/v0.14.0...HEAD
+[v0.14.0]: https://github.com/nygenome/binest/compare/v0.13.1...v0.14.0
 [v0.13.1]: https://github.com/nygenome/binest/compare/v0.13.0...v0.13.1
 [v0.13.0]: https://github.com/nygenome/binest/compare/v0.12.0...v0.13.0
 [v0.12.0]: https://github.com/nygenome/binest/compare/v0.11.0...v0.12.0

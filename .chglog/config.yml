@@ -12,6 +12,8 @@ options:
         - perf
         - refactor
         - chore
+        - docs
+        - test
   commit_groups:
     title_maps:
       feat: New Features
@@ -19,6 +21,8 @@ options:
       perf: Performance Improvements
       refactor: Code Refactoring
       chore: Code Maintenance
+      docs: Documentation
+      test: Tests
   header:
     pattern: "^(\\w*)\\:\\s(.*)$"
     pattern_maps:
