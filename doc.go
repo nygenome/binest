@@ -1,6 +1,6 @@
 /*
-Package binest implements an API for getting the sizes (amount of data) across
-16KB chunks of the reference given a BAI/TABIX index and the reference FAI index.
+Package binest implements an API for estimating index-derived density across
+16KB chunks of the reference from BAI and tabix indexes.
 */
 package binest
 

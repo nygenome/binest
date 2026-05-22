@@ -14,9 +14,11 @@ var (
 
 // Index holds the raw bins and the refmap for a bai/tbi index
 type Index struct {
-	Bins   *Bins
-	RefMap *RefMap
-	Sample string
+	Bins           *Bins
+	RefMap         *RefMap
+	RefLengths     *RefLengths
+	ReferenceBuild ReferenceBuild
+	Sample         string
 }
 
 // ChromCopy estimates the per chomosome copy number for the given index
@@ -209,16 +211,36 @@ func (i *Index) Sizes(rawSize bool) (*Sizes, error) {
 
 // NewIndex builds a new index given the path to index file and optionally path to reference fasta index.
 func NewIndex(idxPath, faiPath string) (*Index, error) {
+	return NewIndexWithOptions(idxPath, IndexOptions{FAIPath: faiPath})
+}
+
+// NewIndexWithOptions builds a new index with explicit reference handling options.
+func NewIndexWithOptions(idxPath string, opts IndexOptions) (*Index, error) {
+	opts = opts.withDefaults()
 	sample := stripKnownSuffixes(idxPath)
-	refmap, err := ReadRefMap(idxPath, faiPath)
+	records, _, err := readReferenceRecords(idxPath, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	bins, err := ReadBins(idxPath, refmap.GenomeBuild())
+	build := opts.ReferenceBuild
+	if build == ReferenceBuildAuto {
+		build, err = detectReferenceBuild(records)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	bins, err := ReadBins(idxPath, build.zeroMaskKey())
 	if err != nil {
 		return nil, err
 	}
 
-	return &Index{Bins: bins, RefMap: refmap, Sample: sample}, nil
+	return &Index{
+		Bins:           bins,
+		RefMap:         records.refMap(),
+		RefLengths:     records.refLengths(),
+		ReferenceBuild: build,
+		Sample:         sample,
+	}, nil
 }

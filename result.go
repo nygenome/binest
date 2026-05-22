@@ -97,7 +97,10 @@ func autosomalMedian(chroms []string, rawSizes [][]int64) (float64, error) {
 		return 0, fmt.Errorf("%w: no usable autosomal bins", errInvalidAutosomeMedian)
 	}
 
-	median := medianI64(vals)
+	median, err := medianI64(vals)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %v", errInvalidAutosomeMedian, err)
+	}
 	if !isPositiveFinite(median) {
 		return 0, fmt.Errorf("%w: got %s", errInvalidAutosomeMedian, strconv.FormatFloat(median, 'f', -1, 64))
 	}
@@ -109,7 +112,10 @@ func chromMedianOrZero(rawSizes []int64) (float64, error) {
 		return 0, nil
 	}
 
-	median := medianI64(append([]int64(nil), rawSizes...))
+	median, err := medianI64(append([]int64(nil), rawSizes...))
+	if err != nil {
+		return 0, err
+	}
 	if median == 0 {
 		return 0, nil
 	}

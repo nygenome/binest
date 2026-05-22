@@ -36,7 +36,15 @@ func TestRunHelp(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("run() exit code = %d, want 0", code)
 	}
-	for _, want := range []string{"Usage:", "size", "--raw"} {
+	for _, want := range []string{
+		"Usage:",
+		"size",
+		"--raw",
+		"Output raw index-density estimates before",
+		"autosomal-median scaling.",
+		"--reference-build",
+		"zero-bin masking",
+	} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("stdout does not contain %q:\n%s", want, stdout.String())
 		}
@@ -184,7 +192,7 @@ func TestRunReportsCleanStdinIndexErrors(t *testing.T) {
 			args:       []string{"size"},
 			stdin:      strings.NewReader(touchTempFile(t, "sample.tbi") + "\n"),
 			wantStdout: "CHROM\tSTART\tEND\tNORMALIZED_SIZE\tSAMPLE\n",
-			wantStderr: []string{"open : no such file or directory"},
+			wantStderr: []string{"no fai file provided to build refmap for tabix index", "sample.tbi"},
 		},
 		{
 			name:       "missing bam and fai for bai",
@@ -223,7 +231,7 @@ func TestRunReportsCleanStdinIndexErrors(t *testing.T) {
 func TestParseDocumentedSizeFlags(t *testing.T) {
 	faiPath := touchTempFile(t, "ref.fasta.fai")
 	idxPath := touchTempFile(t, "sample.bai")
-	app, err := parseTestCLI([]string{"size", "--fai", faiPath, "--raw", idxPath})
+	app, err := parseTestCLI([]string{"size", "--fai", faiPath, "--raw", "--reference-build", "none", "--allow-bam-fai-mismatch", idxPath})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -233,6 +241,12 @@ func TestParseDocumentedSizeFlags(t *testing.T) {
 	}
 	if !app.Size.Raw {
 		t.Fatal("Size.Raw = false, want true")
+	}
+	if app.Size.ReferenceBuild != "none" {
+		t.Fatalf("Size.ReferenceBuild = %q, want none", app.Size.ReferenceBuild)
+	}
+	if !app.Size.AllowBAMFAIMismatch {
+		t.Fatal("Size.AllowBAMFAIMismatch = false, want true")
 	}
 	if !reflect.DeepEqual(app.Size.Indexes, []string{idxPath}) {
 		t.Fatalf("Size.Indexes = %#v, want %#v", app.Size.Indexes, []string{idxPath})
@@ -273,32 +287,41 @@ func TestParseCommandSpecificFlags(t *testing.T) {
 	}
 }
 
-func TestRunIndexesStreamsArgsBeforeStdin(t *testing.T) {
-	got, err := collectRunIndexes([]string{"arg.bai"}, strings.NewReader("stdin1.bai\nstdin2.bai\n"))
+func TestCLIIndexSourceStreamsArgsBeforeStdin(t *testing.T) {
+	got, err := collectCLIIndexSource([]string{"arg.bai"}, strings.NewReader("stdin1.bai\nstdin2.bai\n"))
 	if err != nil {
-		t.Fatalf("runIndexes() error = %v", err)
+		t.Fatalf("collectCLIIndexSource() error = %v", err)
 	}
 
 	want := []string{"arg.bai", "stdin1.bai", "stdin2.bai"}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("runIndexes() indexes = %#v, want %#v", got, want)
+		t.Fatalf("indexes = %#v, want %#v", got, want)
 	}
 }
 
-func TestRunIndexesStreamsStdinBeforeEOF(t *testing.T) {
+func TestCLIIndexSourceStreamsStdinBeforeEOF(t *testing.T) {
 	stdin, stdinWriter := io.Pipe()
 	processed := make(chan string, 1)
 	runDone := make(chan error, 1)
 
 	go func() {
-		runDone <- runIndexes(nil, stdin, func(idxs <-chan string, errs chan<- error, done chan<- bool) {
-			defer func() {
-				done <- true
-			}()
-			for idxPath := range idxs {
-				processed <- idxPath
+		source, err := newCLIIndexSource(nil, stdin)
+		if err != nil {
+			runDone <- err
+			return
+		}
+		for {
+			idxPath, ok, err := source.Next()
+			if err != nil {
+				runDone <- err
+				return
 			}
-		})
+			if !ok {
+				runDone <- nil
+				return
+			}
+			processed <- idxPath
+		}
 	}()
 
 	if _, err := io.WriteString(stdinWriter, "stdin1.bai\n"); err != nil {
@@ -311,7 +334,7 @@ func TestRunIndexesStreamsStdinBeforeEOF(t *testing.T) {
 			t.Fatalf("processed index = %q, want stdin1.bai", got)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("runIndexes did not process stdin before EOF")
+		t.Fatal("source did not process stdin before EOF")
 	}
 
 	if err := stdinWriter.Close(); err != nil {
@@ -321,62 +344,51 @@ func TestRunIndexesStreamsStdinBeforeEOF(t *testing.T) {
 	select {
 	case err := <-runDone:
 		if err != nil {
-			t.Fatalf("runIndexes() error = %v", err)
+			t.Fatalf("source error = %v", err)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("runIndexes did not finish after stdin EOF")
+		t.Fatal("source did not finish after stdin EOF")
 	}
 }
 
-func TestRunIndexesContinuesMixedSuccessAndErrorInputs(t *testing.T) {
-	var processed []string
-	wantErr := errors.New("bad index")
+func TestRunReportsAllBatchIndexFailures(t *testing.T) {
+	var stdout, stderr bytes.Buffer
 
-	err := runIndexes([]string{"good.bai", "bad.bai", "later.bai"}, nil, func(idxs <-chan string, errs chan<- error, done chan<- bool) {
-		defer func() {
-			done <- true
-		}()
-		for idxPath := range idxs {
-			processed = append(processed, idxPath)
-			if idxPath == "bad.bai" {
-				errs <- wantErr
-			}
+	code := run([]string{"size", "--reference-build", "none"}, strings.NewReader("bad1.txt\nbad2.txt\n"), &stdout, &stderr)
+
+	if code != 1 {
+		t.Fatalf("run() exit code = %d, want 1", code)
+	}
+	for _, want := range []string{"2 index processing error(s):", "bad1.txt", "bad2.txt"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("stderr does not contain %q:\n%s", want, stderr.String())
 		}
-	})
-
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("runIndexes() error = %v, want %v", err, wantErr)
-	}
-	wantProcessed := []string{"good.bai", "bad.bai", "later.bai"}
-	if !reflect.DeepEqual(processed, wantProcessed) {
-		t.Fatalf("processed indexes = %#v, want %#v", processed, wantProcessed)
 	}
 }
 
-func TestRunIndexesNoInput(t *testing.T) {
-	called := false
-	err := runIndexes(nil, nil, func(<-chan string, chan<- error, chan<- bool) {
-		called = true
-	})
+func TestCLIIndexSourceNoInput(t *testing.T) {
+	_, err := newCLIIndexSource(nil, nil)
 	if !errors.Is(err, errNoIndexes) {
-		t.Fatalf("runIndexes() error = %v, want %v", err, errNoIndexes)
-	}
-	if called {
-		t.Fatal("runIndexes called runner with no inputs")
+		t.Fatalf("newCLIIndexSource() error = %v, want %v", err, errNoIndexes)
 	}
 }
 
-func collectRunIndexes(args []string, stdin io.Reader) ([]string, error) {
+func collectCLIIndexSource(args []string, stdin io.Reader) ([]string, error) {
+	source, err := newCLIIndexSource(args, stdin)
+	if err != nil {
+		return nil, err
+	}
 	var got []string
-	err := runIndexes(args, stdin, func(idxs <-chan string, errs chan<- error, done chan<- bool) {
-		defer func() {
-			done <- true
-		}()
-		for idxPath := range idxs {
-			got = append(got, idxPath)
+	for {
+		idxPath, ok, err := source.Next()
+		if err != nil {
+			return nil, err
 		}
-	})
-	return got, err
+		if !ok {
+			return got, nil
+		}
+		got = append(got, idxPath)
+	}
 }
 
 func parseTestCLI(args []string) (*cli, error) {
