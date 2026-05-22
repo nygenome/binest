@@ -2,6 +2,14 @@
 ## [Unreleased]
 
 
+<a name="v0.14.1"></a>
+## [v0.14.1] - 2026-05-22
+### Bug Fixes
+- move the CLI main package to `cmd/binest` so
+  `go install github.com/nygenome/binest/cmd/binest@latest` installs a
+  `binest` executable.
+
+
 <a name="v0.14.0"></a>
 ## [v0.14.0] - 2026-05-22
 ### Breaking Changes
@@ -243,7 +251,8 @@
 - add auto versioning, deploy Makefile
 
 
-[Unreleased]: https://github.com/nygenome/binest/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/nygenome/binest/compare/v0.14.1...HEAD
+[v0.14.1]: https://github.com/nygenome/binest/compare/v0.14.0...v0.14.1
 [v0.14.0]: https://github.com/nygenome/binest/compare/v0.13.1...v0.14.0
 [v0.13.1]: https://github.com/nygenome/binest/compare/v0.13.0...v0.13.1
 [v0.13.0]: https://github.com/nygenome/binest/compare/v0.12.0...v0.13.0

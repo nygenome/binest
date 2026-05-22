@@ -29,7 +29,7 @@ all: check
 bin/$(TARGET): $(SRC) VERSION.txt
 	@echo "+ $@"
 	@mkdir -p bin
-	@CGO_ENABLED=0 $(GO) build $(LDFLAGS) -o bin/$(TARGET) ./cmd/binest.go
+	@CGO_ENABLED=0 $(GO) build $(LDFLAGS) -o bin/$(TARGET) ./cmd/binest
 
 .PHONY: build
 build: bin/$(TARGET) ## Build the binest executable in bin/
@@ -96,19 +96,19 @@ git-size-check: ## Verify large generated artifacts are not tracked
 linux64: ## Build the binest executable for linux/amd64 in bin/
 	@echo "+ $@"
 	@mkdir -p bin
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) -o bin/$(TARGET)_linux64 ./cmd/binest.go
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) -o bin/$(TARGET)_linux64 ./cmd/binest
 
 .PHONY: osx64
 osx64: ## Build the binest executable for darwin/amd64 in bin/
 	@echo "+ $@"
 	@mkdir -p bin
-	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o bin/$(TARGET)_osx64 ./cmd/binest.go
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS) -o bin/$(TARGET)_osx64 ./cmd/binest
 
 .PHONY: win64
 win64: ## Build the binest executable for windows/amd64 in bin/
 	@echo "+ $@"
 	@mkdir -p bin
-	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o bin/$(TARGET)_win64.exe ./cmd/binest.go
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o bin/$(TARGET)_win64.exe ./cmd/binest
 
 .PHONY: clean
 clean: ## Remove built binaries

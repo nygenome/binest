@@ -5,4 +5,4 @@ Package binest implements an API for estimating index-derived density across
 package binest
 
 // Version points to the current semantic version of binest
-var Version = "v0.14.0"
+var Version = "v0.14.1"
