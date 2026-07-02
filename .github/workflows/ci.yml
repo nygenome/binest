@@ -27,7 +27,7 @@ jobs:
           cache: true
 
       - name: Cache GIAB fixtures
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache/binest-fixtures/giab
           key: giab-fixtures-${{ hashFiles('testdata/giab/manifest.tsv') }}
@@ -57,7 +57,7 @@ jobs:
         run: go tool govulncheck ./...
 
       - name: Lint
-        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           version: v2.12.2
           args: --timeout=5m
