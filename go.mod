@@ -5,7 +5,7 @@ go 1.26
 toolchain go1.26.3
 
 require (
-	github.com/alecthomas/kong v1.15.0
+	github.com/alecthomas/kong v1.16.0
 	github.com/biogo/biogo v1.0.4
 	github.com/biogo/hts v1.4.5
 )
